@@ -35,3 +35,14 @@
 &nbsp;
 
 ![PostMan Configuration](./Recursos/PostMan1.png)
+
+---
+
+
+### 20/03/2025
+
+- Agregué las dependencias para Leaflet y SignalR.
+- Modifique la tabla autobuses con un nuevo campo, PuntoActual.
+- Creé un nuevo controlador para manejar las simulaciones y un hub de SignalR para enviar actualizaciones a los clientes.
+- A modo de debug provisional, intente hacer una pagina con un mapa para ir probando simulaciones, pero no he conseguido que aparezca el mapa.
+- Para intentar que el mapa apareciese, probe a usar Leaflet con JavaScript y C#, pero no sirvió.

@@ -2,6 +2,8 @@ using LiveBus;
 using LiveBus.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.SignalR;
+using LiveBus.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +13,6 @@ builder.Services.AddDbContext<LiveBusContext>(options =>
     options.UseSqlServer(connectionString));
 
 // Agregar controladores para la API
-// Agregar controladores para la API con opciones de JSON
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
@@ -21,6 +22,11 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 // Configurar Razor Components
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Configurar SignalR
+builder.Services.AddSignalR();
+
+builder.Services.AddScoped<LiveBus.Servicios.Simulacion>();
 
 // Configurar logging
 builder.Logging.ClearProviders();
@@ -41,6 +47,9 @@ app.UseAntiforgery();
 
 // Mapear controladores
 app.MapControllers();
+
+// Mapear SignalR Hub
+app.MapHub<MapaHub>("/mapaHub");
 
 // Mapear componentes de Blazor
 app.MapRazorComponents<App>()

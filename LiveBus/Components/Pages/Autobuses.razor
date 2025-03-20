@@ -1,0 +1,58 @@
+﻿@page "/autobuses"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<h3>Autobuses</h3>
+
+<div id="map" style="height: 500px;"></div>
+
+@code {
+    private HubConnection? hubConnection;
+    private Dictionary<int, (double Latitud, double Longitud)> autobuses = new();
+    private bool mapaInicializado = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InicializarMapa();
+        }
+    }
+
+    private async Task InicializarMapa()
+    {
+        await JS.InvokeVoidAsync("inicializarMapa");
+        mapaInicializado = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/mapaHub"))
+            .Build();
+
+        hubConnection.On<int, double, double>("RecibirPosicion", (autobusId, latitud, longitud) =>
+        {
+            autobuses[autobusId] = (latitud, longitud);
+            InvokeAsync(async () =>
+            {
+                if (mapaInicializado)
+                {
+                    await JS.InvokeVoidAsync("updateMarker", autobusId, latitud, longitud);
+                }
+            });
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

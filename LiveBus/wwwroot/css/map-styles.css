@@ -1,0 +1,27 @@
+/* Additional styling for the map */
+#map {
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    margin-bottom: 20px;
+}
+
+/* Add a more visible popup style */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.95);
+}
+
+.leaflet-popup-content {
+    margin: 10px 12px;
+    line-height: 1.5;
+}
+
+/* Make markers more visible */
+.leaflet-marker-icon {
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Ensure the map container has the correct z-index */
+.leaflet-container {
+    z-index: 1;
+}

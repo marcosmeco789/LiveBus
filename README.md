@@ -66,3 +66,32 @@
 
   
 - Actualmente, en /autobuses el mapa carga una ubicación.
+
+---
+
+### 24/03/2025
+  - Descubrí que si lanzo el servidor desde el Visual Studio y cuando entro a la página cierro el navegador, el servidor se cierra de manera abrupta. No conseguí saber el motivo, pero lo arreglé lanzando el servidor desde consola. 
+  
+  - Para agilizar el proceso de iniciar el servidor, hice un script:
+  
+    ```bash
+        @echo off
+        cd /d C:\Users\marco\source\repos\LiveBus\LiveBus
+        start cmd /k dotnet run --urls="https://localhost:7030"
+    ```
+
+  - Creé el archivo **signalr-autobus.js**. Este archivo JavaScript crea un sistema para mostrar autobuses en movimiento sobre un mapa. Establece una conexión en tiempo real con el servidor usando SignalR que permite ver cómo se mueven los autobuses por sus rutas. El código inicializa un mapa interactivo, carga las rutas y posiciones iniciales de los autobuses desde la API, y actualiza sus posiciones con animaciones suaves cuando se reciben nuevas coordenadas. Los autobuses aparecen como marcadores personalizados en el mapa, las rutas se dibujan como líneas de colores, y el usuario puede ver información adicional al hacer clic sobre ellos. También incluye funciones para controlar la simulación (iniciar, pausar y reiniciar) mediante llamadas a la API correspondiente.
+  
+  - Eliminé **leaflet-init.js** ya que la inicialización del mapa la añadí a **signalr-autobus.js**.
+
+  - Creé la carpeta Hubs y dentro el archivo **AutobusHub.cs**. Este archivo permite comunicación en tiempo real para la aplicación de autobuses. Funciona como un canal central que conecta el servidor con todos los clientes conectados, permitiéndoles recibir actualizaciones instantáneas. 
+
+  - Creé la carpeta Servicios y dentro el archivo **SimulacionService.cs**. Es un servicio en segundo plano que gestiona el movimiento de autobuses a lo largo de rutas predefinidas. A intervalos regulares de 6 segundos, carga los autobuses y sus rutas desde la base de datos y los mantiene en memoria para procesar sus movimientos. Cada vez que se actualiza un autobús, envía notificaciones en tiempo real a todos los clientes conectados.
+  
+  - Creé el archivo **SimulacionController.cs**. Tiene tres acciones principales mediante peticiones POST: iniciar la simulación, pausarla y reiniciarla.
+
+  &nbsp;
+
+  - Funcionamiento actual del mapa:
+    
+     ![Mapa Cargando](./Recursos/gifMapa.gif)

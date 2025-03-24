@@ -46,9 +46,19 @@ namespace LiveBus.Controladores
             return puntoRuta;
         }
 
+        // GET: api/PuntosRuta/Ruta/5
+        [HttpGet("Ruta/{rutaId}")]
+        public async Task<ActionResult<IEnumerable<PuntoRuta>>> GetPuntosPorRuta(int rutaId)
+        {
+            var puntos = await _context.PuntosRuta
+                .Where(pr => pr.RutaId == rutaId)
+                .OrderBy(pr => pr.Orden)
+                .ToListAsync();
+
+            return puntos;
+        }
 
         // PUT: api/PuntosRuta/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutPuntoRuta(int id, PuntoRuta puntoRuta)
         {
@@ -79,7 +89,6 @@ namespace LiveBus.Controladores
         }
 
         // POST: api/PuntosRuta
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<PuntoRuta>> PostPuntoRuta(PuntoRuta puntoRuta)
         {
@@ -87,6 +96,36 @@ namespace LiveBus.Controladores
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetPuntoRuta", new { id = puntoRuta.Id }, puntoRuta);
+        }
+
+        // POST: api/PuntosRuta/Batch
+        [HttpPost("varios")]
+        public async Task<ActionResult<IEnumerable<PuntoRuta>>> PostPuntosRuta(List<PuntoRuta> puntosRuta)
+        {
+            if (puntosRuta == null || !puntosRuta.Any())
+            {
+                return BadRequest("La lista de puntos de ruta no puede estar vacía");
+            }
+
+            // Verificar que todas las rutas existen
+            var rutaIds = puntosRuta.Select(p => p.RutaId).Distinct().ToList();
+            var existingRutas = await _context.Rutas
+                .Where(r => rutaIds.Contains(r.Id))
+                .Select(r => r.Id)
+                .ToListAsync();
+
+            if (existingRutas.Count != rutaIds.Count)
+            {
+                var missingRutas = rutaIds.Except(existingRutas).ToList();
+                return BadRequest($"Las siguientes rutas no existen: {string.Join(", ", missingRutas)}");
+            }
+
+            // Agregar todos los puntos a la base de datos
+            _context.PuntosRuta.AddRange(puntosRuta);
+            await _context.SaveChangesAsync();
+
+            // Devolver los puntos creados con sus IDs asignados
+            return CreatedAtAction("GetPuntosRuta", puntosRuta);
         }
 
         // DELETE: api/PuntosRuta/5
@@ -105,10 +144,28 @@ namespace LiveBus.Controladores
             return NoContent();
         }
 
+        // DELETE: api/PuntosRuta/Ruta/5
+        [HttpDelete("Ruta/{rutaId}")]
+        public async Task<IActionResult> DeletePuntosPorRuta(int rutaId)
+        {
+            var puntos = await _context.PuntosRuta
+                .Where(pr => pr.RutaId == rutaId)
+                .ToListAsync();
+
+            if (!puntos.Any())
+            {
+                return NotFound($"No se encontraron puntos para la ruta con ID {rutaId}");
+            }
+
+            _context.PuntosRuta.RemoveRange(puntos);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         private bool PuntoRutaExists(int id)
         {
             return _context.PuntosRuta.Any(e => e.Id == id);
         }
     }
 }
-

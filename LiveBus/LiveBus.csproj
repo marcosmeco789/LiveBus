@@ -24,7 +24,7 @@
 	  <Content Update="wwwroot\css\map-styles.css">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Content Update="wwwroot\js\leaflet-init.js">
+	  <Content Update="wwwroot\js\signalr-autobus.js">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	</ItemGroup>

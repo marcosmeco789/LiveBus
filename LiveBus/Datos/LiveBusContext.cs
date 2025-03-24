@@ -10,7 +10,7 @@ namespace LiveBus
         public DbSet<Autobus> Autobuses { get; set; }
         public DbSet<Ruta> Rutas { get; set; }
         public DbSet<Posicion> Posiciones { get; set; }
-        public DbSet<PuntoRuta> PuntosRuta { get; set; }  // Nuevo DbSet
+        public DbSet<PuntoRuta> PuntosRuta { get; set; }  
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -19,7 +19,7 @@ namespace LiveBus
             modelBuilder.Entity<Autobus>().ToTable("Autobuses");
             modelBuilder.Entity<Autobus>().HasKey(a => a.Id);
             modelBuilder.Entity<Autobus>()
-                .HasOne(a => a.Ruta)  // Esta es la línea 22 que está causando el error
+                .HasOne(a => a.Ruta)
                 .WithMany(r => r.Autobuses)
                 .HasForeignKey(a => a.RutaId);
 

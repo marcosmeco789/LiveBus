@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using LiveBus.Modelos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using LiveBus;
-using LiveBus.Modelos;
 
-namespace LiveBus.Controladores
+namespace LiveBus.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -27,7 +21,7 @@ namespace LiveBus.Controladores
         {
             return await _context.Autobuses
                 .Include(a => a.Ruta)
-                .Include(a => a.Posiciones)
+                    .ThenInclude(r => r.PuntosRuta)
                 .ToListAsync();
         }
 
@@ -37,7 +31,8 @@ namespace LiveBus.Controladores
         {
             var autobus = await _context.Autobuses
                 .Include(a => a.Ruta)
-                .Include(a => a.Posiciones)
+                    .ThenInclude(r => r.PuntosRuta)
+                .Include(a => a.Posiciones.OrderByDescending(p => p.Timestamp).Take(1))
                 .FirstOrDefaultAsync(a => a.Id == id);
 
             if (autobus == null)
@@ -47,9 +42,7 @@ namespace LiveBus.Controladores
 
             return autobus;
         }
-
         // PUT: api/Autobuses/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutAutobus(int id, Autobus autobus)
         {
@@ -80,7 +73,6 @@ namespace LiveBus.Controladores
         }
 
         // POST: api/Autobuses
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Autobus>> PostAutobus(Autobus autobus)
         {

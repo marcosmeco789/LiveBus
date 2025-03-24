@@ -1,10 +1,27 @@
 ﻿@page "/autobuses"
 @rendermode InteractiveServer
 @inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <PageTitle>Autobuses</PageTitle>
 
 <h1>Mapa de Autobuses</h1>
+
+<div class="row mb-3">
+    <div class="col">
+        <div class="btn-group" role="group">
+            <button class="btn btn-success" @onclick="IniciarSimulacion">
+                <i class="fa fa-play"></i> Iniciar
+            </button>
+            <button class="btn btn-warning" @onclick="PausarSimulacion">
+                <i class="fa fa-pause"></i> Pausar
+            </button>
+            <button class="btn btn-danger" @onclick="ReiniciarSimulacion">
+                <i class="fa fa-refresh"></i> Reiniciar
+            </button>
+        </div>
+    </div>
+</div>
 
 <div id="map" style="height: 500px; width: 100%;"></div>
 
@@ -15,19 +32,88 @@
     {
         if (firstRender && !mapInitialized)
         {
-            await JSRuntime.InvokeVoidAsync("initializeMap");
-            mapInitialized = true;
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("autobusSignalR.initializeMap");
+
+                await JSRuntime.InvokeVoidAsync("autobusSignalR.init");
+
+                mapInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error inicializando mapa: {ex.Message}");
+            }
         }
+    }
+
+    private async Task IniciarSimulacion()
+    {
+        await JSRuntime.InvokeVoidAsync("autobusSignalR.iniciarSimulacion");
+    }
+
+    private async Task PausarSimulacion()
+    {
+        await JSRuntime.InvokeVoidAsync("autobusSignalR.pausarSimulacion");
+    }
+
+    private async Task ReiniciarSimulacion()
+    {
+        await JSRuntime.InvokeVoidAsync("autobusSignalR.reiniciarSimulacion");
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
     }
 }
 
-@* Add script references here to ensure they load with the component *@
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
-<script src="js/leaflet-init.js"></script>
-
+@* Scripts - cargar solo una vez *@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin="" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
 <link rel="stylesheet" href="css/map-styles.css" />
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.0/signalr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.marker.slideto@0.2.0/Leaflet.Marker.SlideTo.min.js"></script>
+<script src="js/signalr-autobus.js"></script>
+
+<style>
+    .bus-marker {
+        background-color: #3388ff;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    }
+
+    .simulation-controls {
+        background-color: white;
+        padding: 5px;
+        border-radius: 4px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    }
+
+    .control-btn {
+        width: 30px;
+        height: 30px;
+        border: none;
+        background-color: white;
+        cursor: pointer;
+        border-radius: 2px;
+    }
+
+        .control-btn:hover {
+            background-color: #f4f4f4;
+        }
+</style>

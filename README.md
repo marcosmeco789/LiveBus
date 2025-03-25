@@ -95,3 +95,14 @@
   - Funcionamiento actual del mapa:
     
      ![Mapa Cargando](./Recursos/gifMapa.gif)
+
+
+  ---
+
+  ### 25/03/2025
+
+  - Puse un icono para el movimiento del autobus en el mapa. Ya no es una bola azul, ahora es esta imagen:
+  
+    <img src="./Recursos/autobus.png" alt="Autobus Icon" width="32" height="32">
+
+  

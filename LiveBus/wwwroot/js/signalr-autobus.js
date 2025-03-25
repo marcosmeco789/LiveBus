@@ -135,11 +135,12 @@ window.autobusSignalR = {
     },
 
     crearMarcadorAutobus: function (autobusId, latitud, longitud, nombre = `Autobús ${autobusId}`) {
-        const busIcon = L.divIcon({
-            className: 'bus-icon',
-            html: `<div class="bus-marker" data-id="${autobusId}">${nombre}</div>`,
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
+        // Crear un icono personalizado con una imagen PNG de un autobús
+        const busIcon = L.icon({
+            iconUrl: '/img/autobus.png',
+            iconSize: [32, 32],     
+            iconAnchor: [16, 16],    
+            popupAnchor: [0, -16]    
         });
 
         // Crear el marcador y añadirlo al mapa

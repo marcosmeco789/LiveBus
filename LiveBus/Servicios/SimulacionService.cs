@@ -24,7 +24,7 @@ namespace LiveBus.Servicios
         private Timer? _timer;
         private bool _simulacionActiva = false;
         private readonly object _lock = new();
-        private readonly TimeSpan _intervaloActualizacion = TimeSpan.FromSeconds(6);
+        private readonly TimeSpan _intervaloActualizacion = TimeSpan.FromSeconds(3);
 
         public SimulacionService(
             IServiceScopeFactory scopeFactory,
@@ -81,27 +81,32 @@ namespace LiveBus.Servicios
 
             try
             {
+                var zonaHorariaEspaña = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+
                 foreach (var autobus in _autobusesActivos.Values)
                 {
                     if (autobus.Ruta == null || !autobus.Ruta.PuntosRuta.Any())
                         continue;
 
                     var puntosRuta = autobus.Ruta.PuntosRuta.OrderBy(p => p.Orden).ToList();
-                    
+
                     if (puntosRuta.Count <= 1 || autobus.PuntoActual >= puntosRuta.Count)
                     {
-                        autobus.PuntoActual = 0; 
+                        autobus.PuntoActual = 0;
                     }
 
                     var puntoActual = puntosRuta[autobus.PuntoActual];
                     var siguientePunto = puntosRuta[(autobus.PuntoActual + 1) % puntosRuta.Count];
+
+                    var timestampUtc = DateTime.UtcNow;
+                    var timestampEspaña = TimeZoneInfo.ConvertTimeFromUtc(timestampUtc, zonaHorariaEspaña);
 
                     var posicion = new Posicion
                     {
                         AutobusId = autobus.Id,
                         Latitud = puntoActual.Latitud,
                         Longitud = puntoActual.Longitud,
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = timestampEspaña
                     };
 
                     autobus.PuntoActual = (autobus.PuntoActual + 1) % puntosRuta.Count;
@@ -117,11 +122,11 @@ namespace LiveBus.Servicios
                             autobusDb.PuntoActual = autobus.PuntoActual;
                             context.Entry(autobusDb).State = EntityState.Modified;
                         }
-                        
+
                         await context.SaveChangesAsync();
                     }
 
-                    await _hubContext.Clients.All.SendAsync("RecibirActualizacionPosicion", 
+                    await _hubContext.Clients.All.SendAsync("RecibirActualizacionPosicion",
                         autobus.Id, posicion.Latitud, posicion.Longitud);
                 }
             }
@@ -137,6 +142,7 @@ namespace LiveBus.Servicios
                 }
             }
         }
+
 
         public async Task IniciarSimulacion()
         {

@@ -105,4 +105,53 @@
   
     <img src="./Recursos/autobus.png" alt="Autobus Icon" width="32" height="32">
 
+  ---
+
+  ### 26/03/2025
+
+  - He arreglado la manera en la que se registraban los valores del campo Timestamp en la tabla **Posiciones**. Se estaban guardando en una franja horaria diferente a la española. 
+  - Eliminé la ruta existente.
+  - Creé la primera ruta real, Baiona-Vigo:
+    - Para hacer los puntos por los que se moverá el autobús, hacerlos a mano no era una opción ya que llevaría una cantidad de tiempo inmensa. Para agilizar el proceso usé una web que me permite trazar una ruta en el mapa y luego descargar un archivo **.gpx** que contiene todas las longitudes y latitudes de la ruta. Para convertir el archivo **.gpx** a **JSON** y añadir los puntos mediante la API use Chat GPT. Con un sencillo prompt pasándole el archivo extrajo los datos que me interesaban para crear la ruta.
+    
+
+      [Web para la ruta](https://graphhopper.com/maps/?profile=car&layer=Omniscale)
+      
+      Primer punto de la ruta:
+
+      ```json
+      {
+          "RutaId": 2,
+          "Orden": 1,
+          "Latitud": 42.118657,
+          "Longitud": -8.85353
+      }
+      ``` 
+      Último punto de la ruta:
+      
+      ```json
+      {
+          "RutaId": 2,
+          "Orden": 683,
+          "Latitud": 42.234455,
+          "Longitud": -8.714938
+      }
+      ``` 
+
+      Gracias a esto, me he ahorrado crear manualmente 683 puntos en el mapa.
+
+      Inconvenientes de este método:
+      - En puntos donde la ruta no varía demasiado, como una recta, avanza más distancia de un movimiento.
+      - En puntos donde la ruta varía mucho, como rotondas, avanza más lentamente.
+
+      Soluciones a estos problemas:
+      - Añadir o quitar puntos manualmente, lo cual haré una vez tenga el proyecto casi terminado.
+    
+  &nbsp;
+  - Estado actual del mapa:
+
+    &nbsp;
+
+    <img src="./Recursos/MapaRuta1.png" alt="Imagen Mapa" width="1300">
+
   

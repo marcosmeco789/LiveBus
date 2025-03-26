@@ -167,9 +167,10 @@ window.autobusSignalR = {
         const puntosOrdenados = [...ruta.puntosRuta].sort((a, b) => a.orden - b.orden);
         const puntos = puntosOrdenados.map(p => [p.latitud, p.longitud]);
 
-        // Dibujar la polyline
+        const rutaColor = ruta.id === 2 ? 'rgb(51, 136, 255)' : this.getRandomColor();
+
         const rutaLine = L.polyline(puntos, {
-            color: this.getRandomColor(),
+            color: rutaColor,
             weight: 5,
             opacity: 0.7
         }).addTo(this.map);
@@ -178,7 +179,8 @@ window.autobusSignalR = {
 
         this.routes[ruta.id] = {
             polyline: rutaLine,
-            puntos: puntosOrdenados
+            puntos: puntosOrdenados,
+            color: rutaColor 
         };
     },
 

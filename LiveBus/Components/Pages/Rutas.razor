@@ -1,0 +1,265 @@
+@page "/rutas"
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using System.Collections
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+@inject NavigationManager NavigationManager
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Rutas disponibles</PageTitle>
+
+<div class="container">
+    <h1>Rutas disponibles</h1>
+    <p class="lead">Consulta todas las rutas disponibles en nuestro sistema.</p>
+
+    @if (loading)
+    {
+        <div class="d-flex justify-content-center my-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else if (error)
+    {
+        <div class="alert alert-danger" role="alert">
+            Ha ocurrido un error al cargar las rutas: @errorMessage
+        </div>
+    }
+    else if (rutas == null || !rutas.Any())
+    {
+        <div class="alert alert-info" role="alert">
+            No hay rutas disponibles en este momento.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Descripción</th>
+                        <th>Puntos</th>
+                        <th>Autobuses</th>
+                        <th>Tiempo estimado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ruta in rutas)
+                    {
+                        <tr>
+                            <td>@ruta.Id</td>
+                            <td>@ruta.Descripcion</td>
+                            <td>@ruta.PuntosRutaCount puntos</td>
+                            <td>@ruta.AutobusesCount autobuses</td>
+                            <td>@ruta.TiempoEstimado</td>
+                            <td>
+                                <a href="/ruta/@ruta.Id" class="btn btn-primary btn-sm">
+                                    <i class="fa fa-map-marker"></i> Ver en mapa
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@using LiveBus.Modelos
+@code {
+    private List<Ruta> rutas = new();
+    private bool loading = true;
+    private bool error = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarRutas();
+    }
+
+    private async Task CargarRutas()
+    {
+        try
+        {
+            loading = true;
+            error = false;
+
+            var client = HttpClientFactory.CreateClient("LocalAPI");
+            var response = await client.GetAsync("api/Rutas");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                try
+                {
+                    rutas = JsonSerializer.Deserialize<List<Ruta>>(content, options) ?? new();
+                }
+                catch
+                {
+                    var jsonDoc = JsonSerializer.Deserialize<JsonDocument>(content);
+                    if (jsonDoc != null && jsonDoc.RootElement.TryGetProperty("$values", out var valuesElement))
+                    {
+                        rutas = JsonSerializer.Deserialize<List<Ruta>>(valuesElement.GetRawText(), options) ?? new();
+                    }
+                }
+            }
+            else
+            {
+                error = true;
+                errorMessage = $"Error en la API: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = true;
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Clase local para deserialización con propiedades computadas
+    public class Ruta
+    {
+        public int Id { get; set; }
+        public string? Descripcion { get; set; }
+
+       
+        public object? PuntosRuta { get; set; }
+
+        [JsonIgnore]
+        public int PuntosRutaCount
+        {
+            get
+            {
+                if (PuntosRuta == null) return 0;
+                if (PuntosRuta is IList list)
+                    return list.Count;
+                if (PuntosRuta is JsonElement element)
+                {
+                    if (element.ValueKind == JsonValueKind.Array)
+                        return element.GetArrayLength();
+                    if (element.TryGetProperty("$values", out var valuesElement) &&
+                        valuesElement.ValueKind == JsonValueKind.Array)
+                        return valuesElement.GetArrayLength();
+                }
+                return 0;
+            }
+        }
+
+        //para luego obtener el count y el progreso
+        public object? Autobuses { get; set; }
+
+        [JsonIgnore]
+        public int AutobusesCount
+        {
+            get
+            {
+                if (Autobuses == null) return 0;
+                if (Autobuses is IList list)
+                    return list.Count;
+                if (Autobuses is JsonElement element)
+                {
+                    if (element.ValueKind == JsonValueKind.Array)
+                        return element.GetArrayLength();
+                    if (element.TryGetProperty("$values", out var valuesElement) &&
+                        valuesElement.ValueKind == JsonValueKind.Array)
+                        return valuesElement.GetArrayLength();
+                }
+                return 0;
+            }
+        }
+
+        // Tiempo estimado
+        [JsonIgnore]
+        public string TiempoEstimado
+        {
+            get
+            {
+                int totalPuntos = this.PuntosRutaCount;
+     
+                int mejorRestante = totalPuntos;
+                bool encontrado = false;
+
+                if (Autobuses != null)
+                {
+                    if (Autobuses is IList list)
+                    {
+                        foreach (var item in list)
+                        {
+                            if (item is JsonElement je && je.ValueKind == JsonValueKind.Object)
+                            {
+                                if (je.TryGetProperty("puntoActual", out var pa) && pa.TryGetInt32(out int puntoActual))
+                                {
+                                    int restante = totalPuntos - puntoActual;
+                                    if (restante < 0) restante = 0;
+                                    if (!encontrado || restante < mejorRestante)
+                                    {
+                                        mejorRestante = restante;
+                                        encontrado = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (Autobuses is JsonElement je)
+                    {
+                        if (je.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var bus in je.EnumerateArray())
+                            {
+                                if (bus.ValueKind == JsonValueKind.Object &&
+                                    bus.TryGetProperty("puntoActual", out var pa) &&
+                                    pa.TryGetInt32(out int puntoActual))
+                                {
+                                    int restante = totalPuntos - puntoActual;
+                                    if (restante < 0) restante = 0;
+                                    if (!encontrado || restante < mejorRestante)
+                                    {
+                                        mejorRestante = restante;
+                                        encontrado = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                int segundos = mejorRestante * 3;
+                return FormatTime(segundos);
+            }
+        }
+
+        private string FormatTime(int seconds)
+        {
+            TimeSpan ts = TimeSpan.FromSeconds(seconds);
+            if (ts.TotalHours >= 1)
+                return $"{(int)ts.TotalHours}h {ts.Minutes}m";
+            else if (ts.TotalMinutes >= 1)
+                return $"{ts.Minutes}m {ts.Seconds}s";
+            else
+                return $"{ts.Seconds}s";
+        }
+    }
+
+    public class PuntoRuta
+    {
+        public int Id { get; set; }
+        public int RutaId { get; set; }
+        public int Orden { get; set; }
+        public double Latitud { get; set; }
+        public double Longitud { get; set; }
+    }
+}
+

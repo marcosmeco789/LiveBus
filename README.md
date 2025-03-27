@@ -154,4 +154,24 @@
 
     <img src="./Recursos/MapaRuta1.png" alt="Imagen Mapa" width="1300">
 
+  ---
+
+  ### 27/03/2025
+
+  - He hecho cambios en la UI:
+    - Cambios en Home. De momento queda así, en un futuro lo dejaré más vistoso.
+    - He eliminado las páginas que trae Blazor por defecto.
+    - He añadido la página **Rutas** donde habrá una tabla con las rutas de los autobuses. Así está actualmente:
+    
+    &nbsp;
+
+    <img src="./Recursos/Home.png" alt="Imagen Home" width="1300">
+
+    &nbsp;
+
+    - Los campos de la tabla son aún provisionales. 
+    - Puntos es el total de movimientos que hace el autobús para desplazarse por el mapa, con eso voy a calcular el tiempo en el campo Tiempo estimado. De momento no funciona.
+    - En el botón se podrá ver en el mapa la posición del autobús. De momento no funciona.
+
+      
   

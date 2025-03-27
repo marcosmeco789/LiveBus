@@ -1,4 +1,4 @@
-using LiveBus.Hubs;
+ï»¿using LiveBus.Hubs;
 using LiveBus.Modelos;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -38,12 +38,12 @@ namespace LiveBus.Servicios
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Servicio de Simulación iniciado");
-            
+            _logger.LogInformation("Servicio de Simulacion iniciado");
+
             await CargarDatosIniciales();
 
             _timer = new Timer(ActualizarPosiciones, null, Timeout.Infinite, Timeout.Infinite);
-            
+
             await Task.CompletedTask;
         }
 
@@ -57,15 +57,15 @@ namespace LiveBus.Servicios
                     .Include(a => a.Ruta)
                         .ThenInclude(r => r.PuntosRuta.OrderBy(p => p.Orden))
                     .ToListAsync();
-                
-                foreach(var autobus in autobuses)
+
+                foreach (var autobus in autobuses)
                 {
                     if (autobus.Ruta != null && autobus.Ruta.PuntosRuta.Any())
                     {
                         _autobusesActivos.TryAdd(autobus.Id, autobus);
                     }
                 }
-                
+
                 _logger.LogInformation($"Datos iniciales cargados: {_autobusesActivos.Count} autobuses activos");
             }
             catch (Exception ex)
@@ -81,7 +81,7 @@ namespace LiveBus.Servicios
 
             try
             {
-                var zonaHorariaEspaña = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+                var zonaHorariaEspana = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
 
                 foreach (var autobus in _autobusesActivos.Values)
                 {
@@ -99,14 +99,14 @@ namespace LiveBus.Servicios
                     var siguientePunto = puntosRuta[(autobus.PuntoActual + 1) % puntosRuta.Count];
 
                     var timestampUtc = DateTime.UtcNow;
-                    var timestampEspaña = TimeZoneInfo.ConvertTimeFromUtc(timestampUtc, zonaHorariaEspaña);
+                    var timestampEspana = TimeZoneInfo.ConvertTimeFromUtc(timestampUtc, zonaHorariaEspana);
 
                     var posicion = new Posicion
                     {
                         AutobusId = autobus.Id,
                         Latitud = puntoActual.Latitud,
                         Longitud = puntoActual.Longitud,
-                        Timestamp = timestampEspaña
+                        Timestamp = timestampEspana
                     };
 
                     autobus.PuntoActual = (autobus.PuntoActual + 1) % puntosRuta.Count;
@@ -152,7 +152,7 @@ namespace LiveBus.Servicios
                 {
                     _simulacionActiva = true;
                     _timer?.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
-                    _logger.LogInformation("Simulación iniciada");
+                    _logger.LogInformation("Simulacion iniciada");
                 }
             }
 
@@ -167,7 +167,7 @@ namespace LiveBus.Servicios
                 {
                     _simulacionActiva = false;
                     _timer?.Change(Timeout.Infinite, Timeout.Infinite);
-                    _logger.LogInformation("Simulación pausada");
+                    _logger.LogInformation("Simulacion pausada");
                 }
             }
 
@@ -183,7 +183,7 @@ namespace LiveBus.Servicios
 
             await PausarSimulacion();
             await IniciarSimulacion();
-            
+
             await _hubContext.Clients.All.SendAsync("SimulacionReiniciada");
         }
 
@@ -198,7 +198,7 @@ namespace LiveBus.Servicios
             {
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<LiveBusContext>();
-                
+
                 var autobus = await context.Autobuses.FindAsync(autobusId);
                 if (autobus != null)
                 {
@@ -211,7 +211,7 @@ namespace LiveBus.Servicios
                         .Include(a => a.Ruta)
                             .ThenInclude(r => r.PuntosRuta.OrderBy(p => p.Orden))
                         .FirstOrDefaultAsync(a => a.Id == autobusId);
-                    
+
                     if (autobusActualizado != null && autobusActualizado.Ruta != null)
                     {
                         _autobusesActivos.AddOrUpdate(autobusId, autobusActualizado, (_, _) => autobusActualizado);
@@ -222,7 +222,7 @@ namespace LiveBus.Servicios
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error al asignar ruta {rutaId} al autobús {autobusId}");
+                _logger.LogError(ex, $"Error al asignar ruta {rutaId} al autobus {autobusId}");
                 throw;
             }
         }
@@ -231,7 +231,7 @@ namespace LiveBus.Servicios
         {
             _timer?.Change(Timeout.Infinite, Timeout.Infinite);
             await base.StopAsync(cancellationToken);
-            _logger.LogInformation("Servicio de Simulación detenido");
+            _logger.LogInformation("Servicio de Simulacion detenido");
         }
 
         public override void Dispose()

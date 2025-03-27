@@ -46,6 +46,12 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
     serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
 });
 
+// Registrar HttpClient para consumir APIs internas
+builder.Services.AddHttpClient("LocalAPI", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7030/");
+});
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

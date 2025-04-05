@@ -173,5 +173,8 @@
     - Puntos es el total de movimientos que hace el autobús para desplazarse por el mapa, con eso voy a calcular el tiempo en el campo Tiempo estimado. De momento no funciona.
     - En el botón se podrá ver en el mapa la posición del autobús. De momento no funciona.
 
+  ---
+
+  ### 05/04/2025
       
-  
+  - He arreglado el campo **Tiempo estimado**.

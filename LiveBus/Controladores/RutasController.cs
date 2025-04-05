@@ -29,7 +29,8 @@ namespace LiveBus.Controllers
         public async Task<ActionResult<Ruta>> GetRuta(int id)
         {
             var ruta = await _context.Rutas
-                .Include(r => r.PuntosRuta)
+                .Include(r => r.PuntosRuta.OrderBy(p => p.Orden))
+                .Include(r => r.Autobuses) // Asegura incluir los autobuses
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (ruta == null)

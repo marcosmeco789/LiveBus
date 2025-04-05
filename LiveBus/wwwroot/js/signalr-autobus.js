@@ -37,7 +37,7 @@ window.autobusSignalR = {
             await this.connection.start();
             console.log("Conexión SignalR establecida");
 
-         
+
             await this.cargarDatosIniciales();
         } catch (err) {
             console.error("Error al inicializar SignalR: ", err);
@@ -75,7 +75,7 @@ window.autobusSignalR = {
 
     cargarDatosIniciales: async function () {
         try {
-       
+
             const rutasResponse = await fetch('/api/Rutas');
             if (rutasResponse.ok) {
                 const data = await rutasResponse.json();
@@ -94,10 +94,10 @@ window.autobusSignalR = {
                 }
             }
 
-  
+
             const autobusesResponse = await fetch('/api/Autobuses');
             if (autobusesResponse.ok) {
-                const data = await autobusesResponse.json();       
+                const data = await autobusesResponse.json();
                 const autobuses = data.$values || data;
 
                 if (Array.isArray(autobuses)) {
@@ -138,9 +138,9 @@ window.autobusSignalR = {
         // Crear un icono personalizado con una imagen PNG de un autobús
         const busIcon = L.icon({
             iconUrl: '/img/autobus.png',
-            iconSize: [32, 32],     
-            iconAnchor: [16, 16],    
-            popupAnchor: [0, -16]    
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            popupAnchor: [0, -16]
         });
 
         // Crear el marcador y añadirlo al mapa
@@ -180,7 +180,7 @@ window.autobusSignalR = {
         this.routes[ruta.id] = {
             polyline: rutaLine,
             puntos: puntosOrdenados,
-            color: rutaColor 
+            color: rutaColor
         };
     },
 

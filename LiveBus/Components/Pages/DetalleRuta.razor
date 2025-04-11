@@ -1,0 +1,132 @@
+@page "/ruta/{Id:int}"
+@rendermode InteractiveServer
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject IHttpClientFactory HttpClientFactory
+@implements IAsyncDisposable
+
+<PageTitle>Autobuses - Ruta @Id</PageTitle>
+
+<h1>Mapa de Autobuses - Ruta @Id</h1>
+
+<div class="row mb-3">
+    <div class="col">
+        <div class="btn-group" role="group">
+            <button class="btn btn-success" @onclick="IniciarSimulacion">
+                <i class="fa fa-play"></i> Iniciar
+            </button>
+            <button class="btn btn-warning" @onclick="PausarSimulacion">
+                <i class="fa fa-pause"></i> Pausar
+            </button>
+            <button class="btn btn-danger" @onclick="ReiniciarSimulacion">
+                <i class="fa fa-refresh"></i> Reiniciar
+            </button>
+            <a href="/rutas" class="btn btn-secondary">
+                <i class="fa fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="map" style="height: 500px; width: 100%;"></div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private bool mapInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !mapInitialized)
+        {
+            try
+            {
+                // Inicializar el mapa
+                await JSRuntime.InvokeVoidAsync("rutaSignalR.initializeMap");
+
+                // Configurar la ruta específica a mostrar
+                await JSRuntime.InvokeVoidAsync("rutaSignalR.setRutaId", Id);
+
+                // Inicializar la conexión y cargar datos
+                await JSRuntime.InvokeVoidAsync("rutaSignalR.init");
+
+                mapInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error inicializando mapa: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task IniciarSimulacion()
+    {
+        await JSRuntime.InvokeVoidAsync("rutaSignalR.iniciarSimulacion");
+    }
+
+    private async Task PausarSimulacion()
+    {
+        await JSRuntime.InvokeVoidAsync("rutaSignalR.pausarSimulacion");
+    }
+
+    private async Task ReiniciarSimulacion()
+    {
+        await JSRuntime.InvokeVoidAsync("rutaSignalR.reiniciarSimulacion");
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+}
+
+@* Scripts - cargar solo una vez *@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin="" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+<link rel="stylesheet" href="css/map-styles.css" />
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.0/signalr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.marker.slideto@0.2.0/Leaflet.Marker.SlideTo.min.js"></script>
+<script src="js/signalr-ruta.js"></script>
+
+<style>
+    .bus-marker {
+        background-color: #3388ff;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    }
+
+    .simulation-controls {
+        background-color: white;
+        padding: 5px;
+        border-radius: 4px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    }
+
+    .control-btn {
+        width: 30px;
+        height: 30px;
+        border: none;
+        background-color: white;
+        cursor: pointer;
+        border-radius: 2px;
+    }
+
+        .control-btn:hover {
+            background-color: #f4f4f4;
+        }
+</style>

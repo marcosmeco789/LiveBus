@@ -178,3 +178,11 @@
   ### 05/04/2025
       
   - He arreglado el campo **Tiempo estimado**.
+  
+  ---
+
+  ### 11/04/2025
+
+  - Ahora el boton de la tabla funciona y te lleva a una vista donde solo ves el autobus seleccionado.
+  
+  <img src="./Recursos/VistaRuta.png" alt="Imagen Mapa" width="1300">

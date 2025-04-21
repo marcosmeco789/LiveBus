@@ -186,3 +186,11 @@
   - Ahora el boton de la tabla funciona y te lleva a una vista donde solo ves el autobus seleccionado.
   
   <img src="./Recursos/VistaRuta.png" alt="Imagen Mapa" width="1300">
+
+  ---
+
+  ### 21/04/2025
+
+  - Ruta al aeropuerto añadida. De la misma manera que añadí la primera, a traves de la API añadí todo lo necesario a las tablas.
+  
+  <img src="./Recursos/VistaRuta2.png" alt="Imagen Mapa" width="1300">

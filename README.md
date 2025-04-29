@@ -194,3 +194,23 @@
   - Ruta al aeropuerto añadida. De la misma manera que añadí la primera, a traves de la API añadí todo lo necesario a las tablas.
   
   <img src="./Recursos/VistaRuta2.png" alt="Imagen Mapa" width="1300">
+
+  ---
+
+  ### 29/04/2025
+
+  - Vista de administracion añadida. Se puede modificar el nombre de la ruta, eliminar o deshabilitar. El boton de añadir no funciona.
+  - Modifique el modelo **Ruta.cs:**
+
+    ```csharp
+      public bool Habilitada { get; set; } = true;   
+    ```
+
+  - Ejecute la migracion:
+
+    ```bash
+      dotnet ef migrations add AddHabilitadaToRuta
+      dotnet ef database update
+    ```
+
+    <img src="./Recursos/admin.png" alt="Imagen Mapa" width="1300">

@@ -1,0 +1,168 @@
+@page "/admin/rutas"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpClientFactory
+@using System.Text.Json
+@using System.Text.Json.Serialization
+
+<PageTitle>Administración de Rutas</PageTitle>
+
+<div class="container">
+    <h1>Administración de Rutas</h1>
+    <p class="lead">Gestiona las rutas disponibles en el sistema.</p>
+
+    @if (loading)
+    {
+        <div class="d-flex justify-content-center my-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else if (error)
+    {
+        <div class="alert alert-danger" role="alert">
+            Ha ocurrido un error al cargar las rutas: @errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Habilitada</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ruta in rutas)
+                    {
+                        <tr>
+                            <td>@ruta.Id</td>
+                            <td>
+                                <input type="text" class="form-control" @bind="@ruta.Descripcion" />
+                            </td>
+                            <td>
+                                <input type="checkbox" class="form-check-input" @bind="@ruta.Habilitada" />
+                            </td>
+                            <td>
+                                <button class="btn btn-success btn-sm" @onclick="() => GuardarCambios(ruta)">Guardar</button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => EliminarRuta(ruta.Id)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <button class="btn btn-primary" @onclick="AgregarRuta">Agregar Nueva Ruta</button>
+    }
+</div>
+
+@code {
+    private List<Ruta> rutas = new();
+    private bool loading = true;
+    private bool error = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarRutas();
+    }
+
+    private async Task CargarRutas()
+    {
+        try
+        {
+            var client = HttpClientFactory.CreateClient("LocalAPI");
+            var response = await client.GetAsync("api/Rutas");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+                try
+                {
+                    // Intenta deserializar directamente
+                    rutas = await JsonSerializer.DeserializeAsync<List<Ruta>>(
+                        await response.Content.ReadAsStreamAsync(), options) ?? new();
+                }
+                catch
+                {
+                    // Si falla, maneja el caso especial donde los datos están envueltos en una propiedad $values
+                    var jsonDoc = JsonSerializer.Deserialize<JsonDocument>(content);
+                    if (jsonDoc != null && jsonDoc.RootElement.TryGetProperty("$values", out var valuesElement))
+                    {
+                        rutas = JsonSerializer.Deserialize<List<Ruta>>(valuesElement.GetRawText(), options) ?? new();
+                    }
+                    else
+                    {
+                        rutas = new List<Ruta>();
+                    }
+                }
+            }
+            else
+            {
+                error = true;
+                errorMessage = $"Error al cargar rutas: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = true;
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+
+    private async Task GuardarCambios(Ruta ruta)
+    {
+        var client = HttpClientFactory.CreateClient("LocalAPI");
+        var response = await client.PutAsJsonAsync($"api/Rutas/{ruta.Id}", ruta);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // Notificar a través de un nuevo endpoint para actualizar el mapa
+            await client.PostAsync($"api/Rutas/{ruta.Id}/actualizarEstadoVisibilidad", null);
+        }
+        else
+        {
+            error = true;
+            errorMessage = $"Error al guardar cambios: {response.StatusCode}";
+        }
+    }
+
+    private async Task EliminarRuta(int id)
+    {
+        var client = HttpClientFactory.CreateClient("LocalAPI");
+        var response = await client.DeleteAsync($"api/Rutas/{id}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            rutas.RemoveAll(r => r.Id == id);
+        }
+        else
+        {
+            error = true;
+            errorMessage = $"Error al eliminar ruta: {response.StatusCode}";
+        }
+    }
+
+    private void AgregarRuta()
+    {
+        rutas.Add(new Ruta { Id = 0, Descripcion = "Nueva Ruta", Habilitada = true });
+    }
+
+    public class Ruta
+    {
+        public int Id { get; set; }
+        public string Descripcion { get; set; } = string.Empty;
+        public bool Habilitada { get; set; }
+    }
+}

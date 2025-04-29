@@ -9,9 +9,10 @@
         }
 
         public int Id { get; set; }
-        public required string Descripcion { get; set; }  // Usar el modificador required
+        public required string Descripcion { get; set; }  
+        public bool Habilitada { get; set; } = true;      
 
-        // Propiedades de navegación
+
         public ICollection<PuntoRuta> PuntosRuta { get; set; }
         public ICollection<Autobus> Autobuses { get; set; }
     }

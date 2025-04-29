@@ -1,5 +1,7 @@
-﻿using LiveBus.Modelos;
+﻿using LiveBus.Hubs;
+using LiveBus.Modelos;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiveBus.Controllers
@@ -94,6 +96,25 @@ namespace LiveBus.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        [HttpPost("{id}/actualizarEstadoVisibilidad")]
+        public async Task<IActionResult> ActualizarEstadoVisibilidad(int id)
+        {
+            var ruta = await _context.Rutas
+                .Include(r => r.Autobuses)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (ruta == null)
+            {
+                return NotFound();
+            }
+
+            // Notificar a los clientes del cambio en la visibilidad de la ruta
+            var hubContext = HttpContext.RequestServices.GetRequiredService<IHubContext<AutobusHub>>();
+            await hubContext.Clients.All.SendAsync("ActualizarEstadoRuta", id, ruta.Habilitada);
+
+            return Ok();
         }
 
         private bool RutaExists(int id)

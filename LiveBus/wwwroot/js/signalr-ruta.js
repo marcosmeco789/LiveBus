@@ -50,40 +50,47 @@ window.rutaSignalR = {
     },
 
     setupSignalRHandlers: function () {
+        // Eventos genéricos (filtrar por rutaId)
         this.connection.on("RecibirActualizacionPosicion", (autobusId, latitud, longitud) => {
-            // Solo actualizar autobuses de la ruta especificada
             this.verificarYActualizarAutobus(autobusId, latitud, longitud);
         });
 
-        this.connection.on("RecibirInfoAutobus", (autobus) => {
-            // Solo actualizar autobuses de la ruta especificada
-            if (autobus && autobus.rutaId == this.rutaId) {
-                this.actualizarInfoAutobus(autobus);
-            }
-        });
-
-        this.connection.on("RecibirCambioRuta", (autobusId, rutaId) => {
-            // Manejar cambios de ruta (añadir o quitar marcadores según corresponda)
+        // Eventos para rutas específicas
+        this.connection.on("SimulacionIniciadaRuta", (rutaId) => {
             if (rutaId == this.rutaId) {
-                this.obtenerYMostrarAutobus(autobusId);
-            } else {
-                this.eliminarMarcadorAutobus(autobusId);
+                this.isStarted = true;
+                console.log(`Simulación iniciada para ruta ${rutaId}`);
             }
         });
 
+        this.connection.on("SimulacionPausadaRuta", (rutaId) => {
+            if (rutaId == this.rutaId) {
+                this.isStarted = false;
+                console.log(`Simulación pausada para ruta ${rutaId}`);
+            }
+        });
+
+        this.connection.on("SimulacionReiniciadaRuta", (rutaId) => {
+            if (rutaId == this.rutaId) {
+                this.isStarted = true;
+                console.log(`Simulación reiniciada para ruta ${rutaId}`);
+            }
+        });
+
+        // Mantener los eventos globales, pero solo para compatibilidad
         this.connection.on("SimulacionIniciada", () => {
-            this.isStarted = true;
-            console.log("Simulacion iniciada");
+            // No cambiar estado aquí, solo para registro
+            console.log("Evento global: Simulación iniciada");
         });
 
         this.connection.on("SimulacionPausada", () => {
-            this.isStarted = false;
-            console.log("Simulacion pausada");
+            // No cambiar estado aquí, solo para registro
+            console.log("Evento global: Simulación pausada");
         });
 
         this.connection.on("SimulacionReiniciada", () => {
-            this.isStarted = true;
-            console.log("Simulacion reiniciada");
+            // No cambiar estado aquí, solo para registro
+            console.log("Evento global: Simulación reiniciada");
         });
     },
 
@@ -291,7 +298,7 @@ window.rutaSignalR = {
 
     iniciarSimulacion: async function () {
         try {
-            await fetch('/api/Simulacion/iniciar', { method: 'POST' });
+            await fetch(`/api/Simulacion/iniciar?rutaId=${this.rutaId}`, { method: 'POST' });
         } catch (err) {
             console.error("Error al iniciar simulación:", err);
         }
@@ -299,7 +306,7 @@ window.rutaSignalR = {
 
     pausarSimulacion: async function () {
         try {
-            await fetch('/api/Simulacion/pausar', { method: 'POST' });
+            await fetch(`/api/Simulacion/pausar?rutaId=${this.rutaId}`, { method: 'POST' });
         } catch (err) {
             console.error("Error al pausar simulación:", err);
         }
@@ -307,7 +314,7 @@ window.rutaSignalR = {
 
     reiniciarSimulacion: async function () {
         try {
-            await fetch('/api/Simulacion/reiniciar', { method: 'POST' });
+            await fetch(`/api/Simulacion/reiniciar?rutaId=${this.rutaId}`, { method: 'POST' });
         } catch (err) {
             console.error("Error al reiniciar simulación:", err);
         }

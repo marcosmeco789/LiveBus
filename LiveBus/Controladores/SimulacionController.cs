@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LiveBus.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class SimulacionController : ControllerBase
     {
         private readonly ISimulacionService _simulacionService;
@@ -15,23 +15,44 @@ namespace LiveBus.Controllers
         }
 
         [HttpPost("iniciar")]
-        public async Task<IActionResult> Iniciar()
+        public async Task<IActionResult> IniciarSimulacion([FromQuery] int? rutaId)
         {
-            await _simulacionService.IniciarSimulacion();
+            if (rutaId.HasValue)
+            {
+                await _simulacionService.IniciarSimulacionPorRuta(rutaId.Value);
+            }
+            else
+            {
+                await _simulacionService.IniciarSimulacion();
+            }
             return Ok();
         }
 
         [HttpPost("pausar")]
-        public async Task<IActionResult> Pausar()
+        public async Task<IActionResult> PausarSimulacion([FromQuery] int? rutaId)
         {
-            await _simulacionService.PausarSimulacion();
+            if (rutaId.HasValue)
+            {
+                await _simulacionService.PausarSimulacionPorRuta(rutaId.Value);
+            }
+            else
+            {
+                await _simulacionService.PausarSimulacion();
+            }
             return Ok();
         }
 
         [HttpPost("reiniciar")]
-        public async Task<IActionResult> Reiniciar()
+        public async Task<IActionResult> ReiniciarSimulacion([FromQuery] int? rutaId)
         {
-            await _simulacionService.ReiniciarSimulacion();
+            if (rutaId.HasValue)
+            {
+                await _simulacionService.ReiniciarSimulacionPorRuta(rutaId.Value);
+            }
+            else
+            {
+                await _simulacionService.ReiniciarSimulacion();
+            }
             return Ok();
         }
     }

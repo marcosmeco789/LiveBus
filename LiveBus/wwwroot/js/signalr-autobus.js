@@ -71,16 +71,43 @@ window.autobusSignalR = {
         this.connection.on("SimulacionReiniciada", () => {
             this.isStarted = true;
             console.log("Simulacion reiniciada");
-            this.actualizarRutasVisibles(); // Actualizar rutas visibles al reiniciar
+            this.actualizarRutasVisibles(); 
         });
 
-        // Nuevo manejador para actualizar el estado de visibilidad de las rutas
-        this.connection.on("ActualizarEstadoRuta", (rutaId, habilitada) => {
+        this.connection.on("SimulacionIniciadaRuta", (rutaId) => {
+            if (this.rutasActivas[rutaId]) {
+                console.log(`Simulación iniciada para ruta específica ${rutaId}`);
+            }
+        });
+
+        this.connection.on("SimulacionPausadaRuta", (rutaId) => {
+            if (this.rutasActivas[rutaId]) {
+                console.log(`Simulación pausada para ruta específica ${rutaId}`);
+            }
+        });
+
+        this.connection.on("SimulacionReiniciadaRuta", (rutaId) => {
+            if (this.rutasActivas[rutaId]) {
+                console.log(`Simulación reiniciada para ruta específica ${rutaId}`);
+                this.actualizarEstadoVisibilidadRuta(rutaId, true);
+            }
+        });
+
+        this.connection.on("ActualizarEstadoRuta", async (rutaId, habilitada) => {
             console.log(`Actualizando estado de la ruta ${rutaId}: ${habilitada}`);
             this.rutasActivas[rutaId] = habilitada;
+
+            try {
+                await this.pausarSimulacion();
+                console.log(`Simulación pausada debido al cambio de estado de la ruta ${rutaId}`);
+            } catch (err) {
+                console.error("Error al pausar la simulación:", err);
+            }
+
             this.actualizarEstadoVisibilidadRuta(rutaId, habilitada);
         });
-    },
+    }, 
+
 
     cargarDatosIniciales: async function () {
         try {
@@ -91,7 +118,6 @@ window.autobusSignalR = {
                 const rutas = data.$values || data;
 
                 if (Array.isArray(rutas)) {
-                    // Limpiar rutas anteriores
                     this.limpiarRutas();
 
                     for (const ruta of rutas) {
@@ -99,10 +125,8 @@ window.autobusSignalR = {
                             ruta.puntosRuta = ruta.puntosRuta.$values;
                         }
 
-                        // Almacenar el estado de habilitación
                         this.rutasActivas[ruta.id] = ruta.habilitada;
 
-                        // Solo dibujar la ruta si está habilitada
                         if (ruta.habilitada) {
                             this.dibujarRuta(ruta);
                         }
@@ -118,7 +142,6 @@ window.autobusSignalR = {
                 const autobuses = data.$values || data;
 
                 if (Array.isArray(autobuses)) {
-                    // Limpiar marcadores anteriores
                     this.limpiarMarcadores();
 
                     for (const autobus of autobuses) {
@@ -126,7 +149,6 @@ window.autobusSignalR = {
                             autobus.ruta.puntosRuta = autobus.ruta.puntosRuta.$values;
                         }
 
-                        // Solo mostrar autobús si su ruta está habilitada
                         if (autobus.ruta &&
                             autobus.ruta.habilitada &&
                             autobus.ruta.puntosRuta &&
@@ -317,11 +339,6 @@ window.autobusSignalR = {
             console.error(`Error al actualizar ruta del autobús ${autobusId}:`, err);
         }
     },
-    this.connection.on("ActualizarEstadoRuta", (rutaId, habilitada) => {
-        console.log(`Actualizando estado de la ruta ${rutaId}: ${habilitada}`);
-        this.rutasActivas[rutaId] = habilitada;
-        this.actualizarEstadoVisibilidadRuta(rutaId, habilitada);
-    });
 
     actualizarEstadoVisibilidadRuta: async function (rutaId, habilitada) {
         try {
@@ -422,8 +439,7 @@ window.autobusSignalR = {
 
     iniciarSimulacion: async function () {
         try {
-            // Actualizar rutas visibles antes de iniciar la simulación
-            await this.actualizarRutasVisibles();
+            await this.actualizarRutasVisibles(); 
             await fetch('/api/Simulacion/iniciar', { method: 'POST' });
         } catch (err) {
             console.error("Error al iniciar simulación:", err);
@@ -440,8 +456,7 @@ window.autobusSignalR = {
 
     reiniciarSimulacion: async function () {
         try {
-            // Actualizar rutas visibles antes de reiniciar la simulación
-            await this.actualizarRutasVisibles();
+            await this.actualizarRutasVisibles(); 
             await fetch('/api/Simulacion/reiniciar', { method: 'POST' });
         } catch (err) {
             console.error("Error al reiniciar simulación:", err);

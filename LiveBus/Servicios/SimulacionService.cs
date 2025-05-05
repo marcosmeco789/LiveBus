@@ -13,6 +13,10 @@ namespace LiveBus.Servicios
         Task ReiniciarSimulacion();
         Task<IEnumerable<Autobus>> ObtenerAutobusesActivos();
         Task AsignarRutaAutobus(int autobusId, int rutaId);
+
+        Task IniciarSimulacionPorRuta(int rutaId);
+        Task PausarSimulacionPorRuta(int rutaId);
+        Task ReiniciarSimulacionPorRuta(int rutaId);
     }
 
     public class SimulacionService : BackgroundService, ISimulacionService
@@ -55,22 +59,22 @@ namespace LiveBus.Servicios
                 var context = scope.ServiceProvider.GetRequiredService<LiveBusContext>();
                 var autobuses = await context.Autobuses
                     .Include(a => a.Ruta)
-                        .ThenInclude(r => r.PuntosRuta.OrderBy(p => p.Orden))
+                    .ThenInclude(r => r.PuntosRuta)
                     .ToListAsync();
 
                 foreach (var autobus in autobuses)
                 {
-                    if (autobus.Ruta != null && autobus.Ruta.PuntosRuta.Any())
+                    if (autobus.Ruta != null && autobus.Ruta.PuntosRuta != null && autobus.Ruta.PuntosRuta.Any())
                     {
                         _autobusesActivos.TryAdd(autobus.Id, autobus);
                     }
                 }
 
-                _logger.LogInformation($"Datos iniciales cargados: {_autobusesActivos.Count} autobuses activos");
+                _logger.LogInformation($"Datos iniciales cargados: {_autobusesActivos.Count} autobuses activos.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al cargar datos iniciales");
+                _logger.LogError(ex, "Error al cargar datos iniciales.");
             }
         }
 
@@ -85,7 +89,11 @@ namespace LiveBus.Servicios
 
                 foreach (var autobus in _autobusesActivos.Values)
                 {
-                    if (autobus.Ruta == null || !autobus.Ruta.PuntosRuta.Any())
+                    // Solo procesar autobuses de rutas activas
+                    if (autobus.RutaId.HasValue && !_rutasActivas.GetValueOrDefault(autobus.RutaId.Value, false))
+                        continue;
+
+                    if (autobus.Ruta == null || autobus.Ruta.PuntosRuta == null || !autobus.Ruta.PuntosRuta.Any())
                         continue;
 
                     var puntosRuta = autobus.Ruta.PuntosRuta.OrderBy(p => p.Orden).ToList();
@@ -132,7 +140,7 @@ namespace LiveBus.Servicios
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al actualizar posiciones de autobuses");
+                _logger.LogError(ex, "Error al actualizar posiciones de autobuses.");
             }
             finally
             {
@@ -144,6 +152,83 @@ namespace LiveBus.Servicios
         }
 
 
+        private readonly ConcurrentDictionary<int, bool> _rutasActivas = new(); // Estado por ruta
+
+        public async Task IniciarSimulacionPorRuta(int rutaId)
+        {
+            // Marcar esta ruta específica como activa
+            _rutasActivas[rutaId] = true;
+
+            // Iniciar el timer global si está parado
+            lock (_lock)
+            {
+                if (!_simulacionActiva)
+                {
+                    _simulacionActiva = true;
+                    _timer?.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+                }
+            }
+
+            _logger.LogInformation($"Simulación iniciada para la ruta {rutaId}");
+
+            // Notificar solo a los clientes interesados en esta ruta
+            await _hubContext.Clients.All.SendAsync("SimulacionIniciadaRuta", rutaId);
+        }
+
+        public async Task PausarSimulacionPorRuta(int rutaId)
+        {
+            // Marcar esta ruta específica como inactiva
+            _rutasActivas[rutaId] = false;
+
+            // Verificar si hay alguna ruta activa
+            bool hayRutasActivas = _rutasActivas.Values.Any(activa => activa);
+
+            // Si no hay rutas activas, pausar el timer global
+            if (!hayRutasActivas)
+            {
+                lock (_lock)
+                {
+                    _simulacionActiva = false;
+                    _timer?.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+            }
+
+            _logger.LogInformation($"Simulación pausada para la ruta {rutaId}");
+
+            // Notificar solo a los clientes interesados en esta ruta
+            await _hubContext.Clients.All.SendAsync("SimulacionPausadaRuta", rutaId);
+        }
+
+        public async Task ReiniciarSimulacionPorRuta(int rutaId)
+        {
+            // Reiniciar solo los autobuses de esta ruta específica
+            var autobusesEnRuta = _autobusesActivos.Values.Where(a => a.RutaId == rutaId);
+            foreach (var autobus in autobusesEnRuta)
+            {
+                autobus.PuntoActual = 0;
+            }
+
+            // Marcar esta ruta como activa
+            _rutasActivas[rutaId] = true;
+
+            // Asegurar que el timer está en marcha
+            lock (_lock)
+            {
+                if (!_simulacionActiva)
+                {
+                    _simulacionActiva = true;
+                    _timer?.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+                }
+            }
+
+            _logger.LogInformation($"Simulación reiniciada para la ruta {rutaId}");
+
+            // Notificar solo a los clientes interesados en esta ruta
+            await _hubContext.Clients.All.SendAsync("SimulacionReiniciadaRuta", rutaId);
+        }
+
+
+
         public async Task IniciarSimulacion()
         {
             lock (_lock)
@@ -152,7 +237,7 @@ namespace LiveBus.Servicios
                 {
                     _simulacionActiva = true;
                     _timer?.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
-                    _logger.LogInformation("Simulacion iniciada");
+                    _logger.LogInformation("Simulación iniciada para todas las rutas habilitadas.");
                 }
             }
 
@@ -167,7 +252,7 @@ namespace LiveBus.Servicios
                 {
                     _simulacionActiva = false;
                     _timer?.Change(Timeout.Infinite, Timeout.Infinite);
-                    _logger.LogInformation("Simulacion pausada");
+                    _logger.LogInformation("Simulación pausada para todas las rutas habilitadas.");
                 }
             }
 
@@ -184,8 +269,12 @@ namespace LiveBus.Servicios
             await PausarSimulacion();
             await IniciarSimulacion();
 
+            _logger.LogInformation("Simulación reiniciada para todas las rutas habilitadas.");
             await _hubContext.Clients.All.SendAsync("SimulacionReiniciada");
         }
+
+
+
 
         public async Task<IEnumerable<Autobus>> ObtenerAutobusesActivos()
         {

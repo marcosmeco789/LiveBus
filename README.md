@@ -214,3 +214,11 @@
     ```
 
     <img src="./Recursos/admin.png" alt="Imagen Mapa" width="1300">
+
+
+    ---
+
+    ### 05/05/2025
+
+    - Correcion bugs al habilitar/deshabilitar la ruta. Ahora si se deshabilita no se muestra en el mapa.
+    - Antes si pausabas, reanudabas o reiniciabas una ruta la orden se aplicaba a todas. Ahora las ordenes en **https://localhost:7030/ruta/{id}** solo se aplica a esa ruta en concreto y en **https://localhost:7030/autobuses** a todas las habilitadas.

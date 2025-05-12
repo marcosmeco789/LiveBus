@@ -76,7 +76,7 @@
         try
         {
             var client = HttpClientFactory.CreateClient("LocalAPI");
-            var response = await client.GetAsync("api/Rutas");
+            var response = await client.GetAsync("api/Rutas/admin/all");
 
             if (response.IsSuccessStatusCode)
             {
@@ -85,13 +85,11 @@
 
                 try
                 {
-                    // Intenta deserializar directamente
                     rutas = await JsonSerializer.DeserializeAsync<List<Ruta>>(
                         await response.Content.ReadAsStreamAsync(), options) ?? new();
                 }
                 catch
                 {
-                    // Si falla, maneja el caso especial donde los datos están envueltos en una propiedad $values
                     var jsonDoc = JsonSerializer.Deserialize<JsonDocument>(content);
                     if (jsonDoc != null && jsonDoc.RootElement.TryGetProperty("$values", out var valuesElement))
                     {
@@ -119,6 +117,7 @@
             loading = false;
         }
     }
+
 
 
     private async Task GuardarCambios(Ruta ruta)

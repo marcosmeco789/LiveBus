@@ -21,8 +21,10 @@ namespace LiveBus.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Ruta>>> GetRutas()
         {
+            // Modificar para filtrar solo rutas habilitadas
             return await _context.Rutas
                 .Include(r => r.PuntosRuta)
+                .Where(r => r.Habilitada)  // Filtrar solo rutas habilitadas
                 .ToListAsync();
         }
 
@@ -32,16 +34,27 @@ namespace LiveBus.Controllers
         {
             var ruta = await _context.Rutas
                 .Include(r => r.PuntosRuta.OrderBy(p => p.Orden))
-                .Include(r => r.Autobuses) // Asegura incluir los autobuses
+                .Include(r => r.Autobuses)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
-            if (ruta == null)
+            if (ruta == null || !ruta.Habilitada) // Añadir verificación si la ruta está habilitada
             {
                 return NotFound();
             }
 
             return ruta;
         }
+
+        // GET: api/Rutas/admin/all
+        [HttpGet("admin/all")]
+        public async Task<ActionResult<IEnumerable<Ruta>>> GetAllRutas()
+        {
+            return await _context.Rutas
+                .Include(r => r.PuntosRuta)
+                .ToListAsync();
+        }
+
+
         // PUT: api/Rutas/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutRuta(int id, Ruta ruta)

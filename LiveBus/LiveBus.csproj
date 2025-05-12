@@ -31,6 +31,9 @@
 	  <Content Update="wwwroot\favicon.png">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
+	  <Content Update="wwwroot\js\ruta-mapa.js">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
 	  <Content Update="wwwroot\js\signalr-autobus.js">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>

@@ -216,9 +216,27 @@
     <img src="./Recursos/admin.png" alt="Imagen Mapa" width="1300">
 
 
-    ---
+  ---
 
-    ### 05/05/2025
+  ### 05/05/2025
 
-    - Correcion bugs al habilitar/deshabilitar la ruta. Ahora si se deshabilita no se muestra en el mapa.
-    - Antes si pausabas, reanudabas o reiniciabas una ruta la orden se aplicaba a todas. Ahora las ordenes en **https://localhost:7030/ruta/{id}** solo se aplica a esa ruta en concreto y en **https://localhost:7030/autobuses** a todas las habilitadas.
+  - Correcion bugs al habilitar/deshabilitar la ruta. Ahora si se deshabilita no se muestra en el mapa.
+  - Antes si pausabas, reanudabas o reiniciabas una ruta la orden se aplicaba a todas. Ahora las ordenes en **https://localhost:7030/ruta/{id}** solo se aplica a esa ruta en concreto y en **https://localhost:7030/autobuses** a todas las habilitadas.
+
+  ---
+
+  ### 12/05/2025
+
+  - Ahora las rutas deshabilitadas ya no se muestran en la tabla de **https://localhost:7030/rutas**.
+  - Si intentas acceder a una ruta deshabilitada mediante la URL ahora sale un mensaje avisando de que no esta disponible.
+  
+  - Problemas que he tenido despues de realizar estos cambios:
+    - La vista con el mapa que muestra todas las rutas a la vez funciona sin problemas pero la vista del mapa por id **(https://localhost:7030/ruta/{id})** a veces no carga. Deshabilitando el cache carga con mas frecuencia pero no siempre. Intenté debugear lo que estaba pasando pero de momento no he encontrado el fallo, sospecho de que el mapa se inicializa antes de algo que necesita para funcionar.
+  
+  - Creé una cuenta en NOIP para que el proyecto sea accesible desde fuera de mi red local e instale la aplicación en el ordenador. Para hacer funcionar esto se necesita abrir el puerto correspondiente al proyecto, en mi caso el numero **7030**. Despues de muchos intentos como añadir reglas al firewall de Windows, firewall del router y cambiar de ip dinamica a ip fija no fui capaz de abrir el puerto. Esta semana llamaré a mi operadora.
+  
+     <img src="./Recursos/errorPuerto.png" alt="Imagen Home" width="350">
+
+
+
+

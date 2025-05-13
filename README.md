@@ -238,5 +238,13 @@
      <img src="./Recursos/errorPuerto.png" alt="Imagen Home" width="350">
 
 
+  ---
+
+  ### 13/05/2025
+
+  - Consegui abrir el puerto **7030**, ahora se puede acceder a traves de **https://livebus.ddns.net:7030/**. Al usar esta URL al entrar hay que marcar que confias en el sitio web, cosa que en localhost no ocurre ya que esta tiene permisos especiales del navegador y no es necesario.
+  
+
+
 
 

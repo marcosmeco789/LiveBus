@@ -38,18 +38,29 @@ builder.Services.AddControllers()
 builder.Services.AddSingleton<ISimulacionService, SimulacionService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<ISimulacionService>());
 
+
+
+
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     serverOptions.Limits.MaxConcurrentConnections = 100;
     serverOptions.Limits.MaxConcurrentUpgradedConnections = 100;
     serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
     serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
+
+    serverOptions.ListenAnyIP(7030, listenOptions => {
+        listenOptions.UseHttps(); 
+    });
 });
 
-// Registrar HttpClient para consumir APIs internas
 builder.Services.AddHttpClient("LocalAPI", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7030/");
+});
+
+builder.Services.AddHttpClient("ExternalAPI", client =>
+{
+    client.BaseAddress = new Uri("https://livebus.ddns.net:7030/");
 });
 
 var app = builder.Build();

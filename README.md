@@ -244,7 +244,12 @@
 
   - Consegui abrir el puerto **7030**, ahora se puede acceder a traves de **https://livebus.ddns.net:7030/**. Al usar esta URL al entrar hay que marcar que confias en el sitio web, cosa que en localhost no ocurre ya que esta tiene permisos especiales del navegador y no es necesario.
   
+  ---
 
+  ### 17/05/2025
+
+  - Arregle un error que salia por consola de la animacion de movimiento del autobus al desplazarse de punto a punto. Resultó ser que el link al script que estaba usando era incorrecto.
+  - Solucioné un error en **/rutas/{id}.** que hacia que en ocasiones al recargar la pagina el mapa no se iniciase. 
 
 
 

@@ -45,6 +45,9 @@
     private bool mapInitialized = false;
     private bool error = false;
     private string errorMessage = string.Empty;
+    private bool isInitializing = true;
+    private int initAttempts = 0;
+    private const int MAX_INIT_ATTEMPTS = 2;
 
     protected override async Task OnInitializedAsync()
     {
@@ -52,6 +55,8 @@
         {
             var client = HttpClientFactory.CreateClient("LocalAPI");
             var response = await client.GetAsync($"api/Rutas/{Id}");
+
+            Console.WriteLine($"Respuesta cruda para ruta {Id}: {await response.Content.ReadAsStringAsync()}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -70,85 +75,115 @@
             errorMessage = $"Error al cargar la ruta: {ex.Message}";
             Console.WriteLine($"Excepción al cargar la ruta {Id}: {ex.Message}");
         }
+        finally
+        {
+            isInitializing = false;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && rutaHabilitada && !mapInitialized)
+        await JSRuntime.InvokeVoidAsync("console.log", $"firstrender: {firstRender} | rutaHabilitada: {rutaHabilitada} | mapInitialized: {mapInitialized} | isInitializing: {isInitializing} | attempts: {initAttempts}");
+
+        // Intentar inicializar el mapa si está habilitada la ruta y no está inicializado todavía
+        if (!mapInitialized && rutaHabilitada && !isInitializing && initAttempts < MAX_INIT_ATTEMPTS)
         {
-            try
-            {
-                // Dar más tiempo para que el DOM se cargue completamente
-                await Task.Delay(300);
-
-                // Añadir logs para ayudar con la depuración
-                await JSRuntime.InvokeVoidAsync("console.log", $"Verificando elementos del DOM y scripts para ruta {Id}");
-
-                // Asegurarnos que el elemento del mapa existe
-                var mapElementExists = await JSRuntime.InvokeAsync<bool>("eval", "document.getElementById('map') !== null");
-                if (!mapElementExists)
-                {
-                    error = true;
-                    errorMessage = "No se encontró el elemento 'map' en la página.";
-                    StateHasChanged();
-                    return;
-                }
-
-                // Verificar si Leaflet está cargado
-                var leafletExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof L !== 'undefined'");
-                if (!leafletExists)
-                {
-                    error = true;
-                    errorMessage = "La biblioteca Leaflet no está cargada correctamente.";
-                    StateHasChanged();
-                    return;
-                }
-
-                // Verificar si el objeto rutaSignalR existe
-                var signalRExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.rutaSignalR !== 'undefined'");
-                if (!signalRExists)
-                {
-                    error = true;
-                    errorMessage = "El módulo rutaSignalR no está correctamente cargado.";
-                    StateHasChanged();
-                    return;
-                }
-
-                // Verificar SignalR
-                var signalRHubExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof signalR !== 'undefined'");
-                if (!signalRHubExists)
-                {
-                    error = true;
-                    errorMessage = "La biblioteca SignalR no está cargada correctamente.";
-                    StateHasChanged();
-                    return;
-                }
-
-                // Inicializar el mapa con mejor manejo de errores
-                await JSRuntime.InvokeVoidAsync("console.log", "Inicializando mapa para ruta " + Id);
-                await JSRuntime.InvokeVoidAsync("rutaSignalR.initializeMap");
-
-                // Esperar un poco para asegurarnos que el mapa se inicializa
-                await Task.Delay(200);
-
-                // Configurar la ruta específica a mostrar
-                await JSRuntime.InvokeVoidAsync("rutaSignalR.setRutaId", Id);
-
-                // Inicializar la conexión y cargar datos
-                await JSRuntime.InvokeVoidAsync("rutaSignalR.init");
-
-                mapInitialized = true;
-            }
-            catch (Exception ex)
-            {
-                error = true;
-                errorMessage = $"Error al inicializar el mapa: {ex.Message}";
-                Console.WriteLine($"Error inicializando mapa para ruta {Id}: {ex.Message}");
-                StateHasChanged();
-            }
+            initAttempts++;
+            await InitializeMap();
         }
     }
 
+    private async Task InitializeMap()
+    {
+        try
+        {
+            // Dar más tiempo para que el DOM se cargue completamente
+            await Task.Delay(300);
+
+            // Añadir logs para ayudar con la depuración
+            await JSRuntime.InvokeVoidAsync("console.log", $"Verificando elementos del DOM y scripts para ruta {Id}");
+
+            // Asegurarnos que el elemento del mapa existe
+            var mapElementExists = await JSRuntime.InvokeAsync<bool>("eval", "document.getElementById('map') !== null");
+            if (!mapElementExists)
+            {
+                error = true;
+                errorMessage = "No se encontró el elemento 'map' en la página.";
+                await JSRuntime.InvokeVoidAsync("console.log", "No se encontró el elemento 'map' en la página.");
+                StateHasChanged();
+                return;
+            }
+
+            // Verificar si Leaflet está cargado
+            var leafletExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof L !== 'undefined'");
+            if (!leafletExists)
+            {
+                error = true;
+                errorMessage = "La biblioteca Leaflet no está cargada correctamente.";
+                await JSRuntime.InvokeVoidAsync("console.log", "La biblioteca Leaflet no está cargada correctamente.");
+                StateHasChanged();
+                return;
+            }
+
+            // Verificar si el objeto rutaSignalR existe
+            var signalRExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.rutaSignalR !== 'undefined'");
+            if (!signalRExists)
+            {
+                error = true;
+                errorMessage = "El módulo rutaSignalR no está correctamente cargado.";
+                await JSRuntime.InvokeVoidAsync("console.log", "El módulo rutaSignalR no está correctamente cargado.");
+                StateHasChanged();
+                return;
+            }
+
+            // Verificar SignalR
+            var signalRHubExists = await JSRuntime.InvokeAsync<bool>("eval", "typeof signalR !== 'undefined'");
+            if (!signalRHubExists)
+            {
+                error = true;
+                errorMessage = "La biblioteca SignalR no está cargada correctamente.";
+                await JSRuntime.InvokeVoidAsync("console.log", "La biblioteca SignalR no está cargada correctamente.");
+                StateHasChanged();
+                return;
+            }
+
+            // Inicializar el mapa con mejor manejo de errores
+            await JSRuntime.InvokeVoidAsync("console.log", "Inicializando mapa para ruta " + Id);
+
+            // Limpiar cualquier instancia previa que pudiera existir
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                if (window.rutaSignalR && window.rutaSignalR.map) {
+                    try {
+                        window.rutaSignalR.limpiarMapa();
+                        console.log('Mapa previo limpiado correctamente');
+                    } catch(e) {
+                        console.error('Error al limpiar mapa previo:', e);
+                    }
+                }
+            ");
+
+            await JSRuntime.InvokeVoidAsync("rutaSignalR.initializeMap");
+
+            // Esperar un poco para asegurarnos que el mapa se inicializa
+            await Task.Delay(300);
+
+            // Configurar la ruta específica a mostrar
+            await JSRuntime.InvokeVoidAsync("rutaSignalR.setRutaId", Id);
+
+            // Inicializar la conexión y cargar datos
+            await JSRuntime.InvokeVoidAsync("rutaSignalR.init");
+
+            mapInitialized = true;
+            await JSRuntime.InvokeVoidAsync("console.log", "Mapa inicializado correctamente");
+        }
+        catch (Exception ex)
+        {
+            error = true;
+            errorMessage = $"Error al inicializar el mapa: {ex.Message}";
+            Console.WriteLine($"Error inicializando mapa para ruta {Id}: {ex.Message}");
+            StateHasChanged();
+        }
+    }
 
     private async Task IniciarSimulacion()
     {
@@ -220,9 +255,10 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.0/signalr.min.js"></script>
+<script src=@("https://cdn.jsdelivr.net/npm/@microsoft/signalr@6.0.1/dist/browser/signalr.min.js")></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet.marker.slideto@0.2.0/Leaflet.Marker.SlideTo.min.js"></script>
 <script src="js/signalr-ruta.js"></script>
+
 
 <style>
     .bus-marker {

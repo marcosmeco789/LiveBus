@@ -28,7 +28,7 @@ namespace LiveBus.Servicios
         private Timer? _timer;
         private bool _simulacionActiva = false;
         private readonly object _lock = new();
-        private readonly TimeSpan _intervaloActualizacion = TimeSpan.FromSeconds(3);
+        private readonly TimeSpan _intervaloActualizacion = TimeSpan.FromSeconds(4.5);
 
         public SimulacionService(
             IServiceScopeFactory scopeFactory,
@@ -236,6 +236,17 @@ namespace LiveBus.Servicios
                 if (!_simulacionActiva)
                 {
                     _simulacionActiva = true;
+
+                    // Activar todas las rutas disponibles
+                    using var scope = _scopeFactory.CreateScope();
+                    var context = scope.ServiceProvider.GetRequiredService<LiveBusContext>();
+                    var rutasHabilitadas = context.Rutas.Where(r => r.Habilitada).Select(r => r.Id).ToList();
+
+                    foreach (var rutaId in rutasHabilitadas)
+                    {
+                        _rutasActivas[rutaId] = true;
+                    }
+
                     _timer?.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
                     _logger.LogInformation("Simulación iniciada para todas las rutas habilitadas.");
                 }
@@ -243,6 +254,7 @@ namespace LiveBus.Servicios
 
             await _hubContext.Clients.All.SendAsync("SimulacionIniciada");
         }
+
 
         public async Task PausarSimulacion()
         {
@@ -261,9 +273,18 @@ namespace LiveBus.Servicios
 
         public async Task ReiniciarSimulacion()
         {
+            // Solo reiniciar los autobuses de rutas habilitadas
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<LiveBusContext>();
+            var rutasHabilitadas = context.Rutas.Where(r => r.Habilitada).Select(r => r.Id).ToList();
+
             foreach (var autobus in _autobusesActivos.Values)
             {
-                autobus.PuntoActual = 0;
+                // Solo reiniciar autobuses cuya ruta esté habilitada
+                if (autobus.RutaId.HasValue && rutasHabilitadas.Contains(autobus.RutaId.Value))
+                {
+                    autobus.PuntoActual = 0;
+                }
             }
 
             await PausarSimulacion();
@@ -272,6 +293,7 @@ namespace LiveBus.Servicios
             _logger.LogInformation("Simulación reiniciada para todas las rutas habilitadas.");
             await _hubContext.Clients.All.SendAsync("SimulacionReiniciada");
         }
+
 
 
 

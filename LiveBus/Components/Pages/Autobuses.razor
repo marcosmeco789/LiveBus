@@ -34,7 +34,26 @@
         {
             try
             {
+                var mapElementExists = await JSRuntime.InvokeAsync<bool>("eval",
+                    "document.getElementById('map') !== null");
+
+                if (!mapElementExists)
+                {
+                    Console.WriteLine("Error: Elemento del mapa no encontrado en el DOM");
+                    return;
+                }
+
+                await JSRuntime.InvokeVoidAsync("eval",
+                        @"if(window.autobusSignalR && window.autobusSignalR.map) {
+                    window.autobusSignalR.map.remove();
+                    window.autobusSignalR.map = null;
+                  }");
+
+                await Task.Delay(100); // Esperar a que el DOM se actualice
+
                 await JSRuntime.InvokeVoidAsync("autobusSignalR.initializeMap");
+
+                await Task.Delay(300);
 
                 await JSRuntime.InvokeVoidAsync("autobusSignalR.init");
 
@@ -46,6 +65,8 @@
             }
         }
     }
+
+
 
     private async Task IniciarSimulacion()
     {
@@ -64,6 +85,24 @@
 
     public ValueTask DisposeAsync()
     {
+        if (mapInitialized)
+        {
+            try
+            {
+                return JSRuntime.InvokeVoidAsync("eval",
+                        @"if(window.autobusSignalR) {
+                    if(window.autobusSignalR.connection) { window.autobusSignalR.connection.stop(); }
+                    if(window.autobusSignalR.map) {
+                        window.autobusSignalR.map.remove();
+                        window.autobusSignalR.map = null;
+                    }
+                  }");
+            }
+            catch
+            {
+               
+            }
+        }
         return ValueTask.CompletedTask;
     }
 }
@@ -78,7 +117,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.0/signalr.min.js"></script>
+<script src=@("https://cdn.jsdelivr.net/npm/@microsoft/signalr@6.0.1/dist/browser/signalr.min.js")></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet.marker.slideto@0.2.0/Leaflet.Marker.SlideTo.min.js"></script>
 <script src="js/signalr-autobus.js"></script>
 

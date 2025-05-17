@@ -5,29 +5,77 @@ window.autobusSignalR = {
     routes: {},
     isStarted: false,
     map: null,
-    rutasActivas: {},  // Nueva propiedad para almacenar el estado de habilitación de las rutas
+    rutasActivas: {}, 
 
-    // Inicializar el mapa
+
     initializeMap: function () {
-        if (this.map) return;
+        // Si ya hay un mapa, eliminarlo primero
+        if (this.map) {
+            try {
+                this.map.remove();
+                this.map = null;
+                console.log("Mapa anterior eliminado");
+            } catch (error) {
+                console.error("Error eliminando mapa anterior:", error);
+            }
+        }
 
-        this.map = L.map('map').setView([42.2345, -8.7072], 13);
+        try {
+            if (!document.getElementById('map')) {
+                console.error("El contenedor del mapa no existe en el DOM");
+                return;
+            }
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxZoom: 19
-        }).addTo(this.map);
+            this.map = L.map('map').setView([42.2345, -8.7072], 13);
 
-        this.map.zoomControl.setPosition('bottomright');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(this.map);
 
-        setTimeout(() => {
-            this.map.invalidateSize();
-        }, 100);
+            this.map.zoomControl.setPosition('bottomright');
+
+            console.log("Mapa inicializado correctamente");
+
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                }
+            }, 100);
+        } catch (error) {
+            console.error("Error al inicializar el mapa:", error);
+        }
     },
+
 
     // Inicializar la conexión SignalR
     init: async function () {
         try {
+            //si hay conexión previa se cierra
+            if (this.connection) {
+                try {
+                    await this.connection.stop();
+                    console.log("Conexión SignalR anterior detenida");
+                } catch (err) {
+                    console.warn("No se pudo detener la conexión anterior:", err);
+                }
+                this.connection = null;
+            }
+
+            this.limpiarMarcadores();
+            this.limpiarRutas();
+
+            // Inicializar mapa si es necesario
+            if (!this.map) {
+                this.initializeMap();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            if (!this.map) {
+                throw new Error("El mapa no se pudo inicializar correctamente");
+            }
+
+            // Crear nueva conexión SignalR
             this.connection = new signalR.HubConnectionBuilder()
                 .withUrl("/autobusMoveHub")
                 .withAutomaticReconnect()
@@ -38,12 +86,14 @@ window.autobusSignalR = {
             await this.connection.start();
             console.log("Conexión SignalR establecida");
 
-
+            // Cargar datos iniciales
             await this.cargarDatosIniciales();
         } catch (err) {
             console.error("Error al inicializar SignalR: ", err);
         }
     },
+
+
 
     setupSignalRHandlers: function () {
         this.connection.on("RecibirActualizacionPosicion", (autobusId, latitud, longitud) => {
@@ -114,7 +164,6 @@ window.autobusSignalR = {
             const rutasResponse = await fetch('/api/Rutas');
             if (rutasResponse.ok) {
                 const data = await rutasResponse.json();
-
                 const rutas = data.$values || data;
 
                 if (Array.isArray(rutas)) {
@@ -170,30 +219,56 @@ window.autobusSignalR = {
     },
 
     actualizarPosicionAutobus: function (autobusId, latitud, longitud) {
-        // Obtener información del autobús para verificar su ruta
-        fetch(`/api/Autobuses/${autobusId}`)
-            .then(response => response.json())
-            .then(autobus => {
-                const rutaId = autobus.rutaId;
+        console.log(`Actualizando posición del autobús ${autobusId} a [${latitud}, ${longitud}]`);
 
-                // Solo actualizar si la ruta está habilitada
-                if (this.rutasActivas[rutaId]) {
-                    if (this.markers[autobusId]) {
-                        const newLatLng = L.latLng(latitud, longitud);
-                        this.markers[autobusId].slideTo(newLatLng, {
-                            duration: 2000,
-                            keepAtCenter: false
-                        });
-                    } else {
-                        this.crearMarcadorAutobus(autobusId, latitud, longitud);
-                    }
-                } else if (this.markers[autobusId]) {
-                    // Si la ruta no está habilitada, eliminar el marcador
-                    this.eliminarMarcador(autobusId);
+        // Verificar directamente si tenemos el marcador
+        if (this.markers[autobusId]) {
+            const prevLatLng = this.markers[autobusId].getLatLng();
+            const newLatLng = L.latLng(latitud, longitud);
+
+            // Calcular distancia para mostrar en log
+            const distancia = prevLatLng.distanceTo(newLatLng);
+            console.log(`Moviendo autobús ${autobusId} - Distancia: ${distancia.toFixed(2)}m`);
+
+            try {
+                // Asegurar que slideTo existe
+                if (typeof this.markers[autobusId].slideTo === 'function') {
+                    // Ejecutar la animación
+                    this.markers[autobusId].slideTo(newLatLng, {
+                        duration: 2000,
+                        keepAtCenter: false
+                    });
+                    console.log(`Animación iniciada para autobús ${autobusId}`);
+                } else {
+                    // Si no existe, moverlo directamente
+                    console.warn(`Function slideTo no disponible para el autobús ${autobusId}. Moviendo sin animación.`);
+                    this.markers[autobusId].setLatLng(newLatLng);
                 }
-            })
-            .catch(err => console.error(`Error al obtener información del autobús ${autobusId}:`, err));
+            } catch (error) {
+                console.error(`Error al animar autobús ${autobusId}:`, error);
+                // Fallback si hay error
+                this.markers[autobusId].setLatLng(newLatLng);
+            }
+        } else {
+            // Si el marcador no existe, obtenemos información completa del autobús
+            fetch(`/api/Autobuses/${autobusId}`)
+                .then(response => response.json())
+                .then(autobus => {
+                    const rutaId = autobus.rutaId;
+
+                    // Solo procesar si la ruta está habilitada
+                    if (this.rutasActivas[rutaId]) {
+                        console.log(`Creando marcador para autobús ${autobusId} (Ruta: ${rutaId})`);
+                        this.crearMarcadorAutobus(autobusId, latitud, longitud, autobus.nombre || `Autobús ${autobusId}`);
+                    }
+                })
+                .catch(err => {
+                    console.error(`Error al obtener información del autobús ${autobusId}:`, err);
+                });
+        }
     },
+
+
 
     eliminarMarcador: function (autobusId) {
         if (this.markers[autobusId]) {
@@ -218,7 +293,11 @@ window.autobusSignalR = {
     },
 
     crearMarcadorAutobus: function (autobusId, latitud, longitud, nombre = `Autobús ${autobusId}`) {
-        // Crear un icono personalizado con una imagen PNG de un autobús
+        if (!this.map) {
+            console.error("No se puede crear el marcador porque el mapa no está inicializado");
+            return null;
+        }
+
         const busIcon = L.icon({
             iconUrl: '/img/autobus.png',
             iconSize: [32, 32],
@@ -235,37 +314,113 @@ window.autobusSignalR = {
         // Añadir popup con información
         marker.bindPopup(`<b>${nombre}</b><br>ID: ${autobusId}`);
 
+        // Siempre implementamos nuestra propia versión de slideTo, independientemente de si existe o no
+        marker._slideAnimationActive = false;
+        marker._currentAnimationId = null;
+
+        marker.slideTo = function (newLatLng, options) {
+            console.log(`Creando animación para autobús ${autobusId}`);
+
+            // Detener cualquier animación en curso
+            if (this._slideAnimationActive && this._currentAnimationId !== null) {
+                window.cancelAnimationFrame(this._currentAnimationId);
+                console.log(`Animación anterior cancelada para autobús ${autobusId}`);
+                this._slideAnimationActive = false;
+            }
+
+            const startLatLng = this.getLatLng();
+            const startPosition = { lat: startLatLng.lat, lng: startLatLng.lng };
+            const endPosition = { lat: newLatLng.lat, lng: newLatLng.lng };
+
+            // Si las posiciones son muy cercanas, actualizar directamente
+            if (Math.abs(startPosition.lat - endPosition.lat) < 0.000001 &&
+                Math.abs(startPosition.lng - endPosition.lng) < 0.000001) {
+                this.setLatLng(newLatLng);
+                return this;
+            }
+
+            const settings = {
+                duration: options?.duration || 2000,
+                easing: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t, // easing cuadrático suave
+                keepAtCenter: options?.keepAtCenter || false
+            };
+
+            const startTime = Date.now();
+            const animate = () => {
+                const elapsedTime = Date.now() - startTime;
+                const progress = Math.min(elapsedTime / settings.duration, 1);
+                const easedProgress = settings.easing(progress);
+
+                // Calcular la nueva posición
+                const lat = startPosition.lat + (endPosition.lat - startPosition.lat) * easedProgress;
+                const lng = startPosition.lng + (endPosition.lng - startPosition.lng) * easedProgress;
+
+                // Establecer la nueva posición
+                this.setLatLng([lat, lng]);
+
+                // Continuar la animación si no ha terminado
+                if (progress < 1) {
+                    this._slideAnimationActive = true;
+                    this._currentAnimationId = window.requestAnimationFrame(animate);
+                } else {
+                    // Animación completada
+                    this.setLatLng(newLatLng); // Asegurar posición final exacta
+                    this._slideAnimationActive = false;
+                    this._currentAnimationId = null;
+
+                    if (settings.keepAtCenter && this._map) {
+                        this._map.setView(newLatLng);
+                    }
+
+                    console.log(`Animación completada para autobús ${autobusId}`);
+                }
+            };
+
+            // Iniciar animación
+            this._slideAnimationActive = true;
+            this._currentAnimationId = window.requestAnimationFrame(animate);
+
+            return this;
+        };
+
         this.markers[autobusId] = marker;
-
-        if (!marker.slideTo && L.Marker.MovingMarker) {
-            Object.assign(marker, L.Marker.MovingMarker.prototype);
-        }
-
         return marker;
     },
 
+
     dibujarRuta: function (ruta) {
+        // Verificar que el mapa se haya inicializado
+        if (!this.map) {
+            console.error("No se puede dibujar la ruta porque el mapa no está inicializado");
+            return;
+        }
+
         if (!ruta.habilitada || !ruta.puntosRuta || ruta.puntosRuta.length < 2) return;
 
-        const puntosOrdenados = [...ruta.puntosRuta].sort((a, b) => a.orden - b.orden);
-        const puntos = puntosOrdenados.map(p => [p.latitud, p.longitud]);
+        try {
+            const puntosOrdenados = [...ruta.puntosRuta].sort((a, b) => a.orden - b.orden);
+            const puntos = puntosOrdenados.map(p => [p.latitud, p.longitud]);
 
-        const rutaColor = ruta.id === 2 ? 'rgb(51, 136, 255)' : this.getRandomColor();
+            const rutaColor = ruta.id === 2 ? 'rgb(51, 136, 255)' : this.getRandomColor();
 
-        const rutaLine = L.polyline(puntos, {
-            color: rutaColor,
-            weight: 5,
-            opacity: 0.7
-        }).addTo(this.map);
+            const rutaLine = L.polyline(puntos, {
+                color: rutaColor,
+                weight: 5,
+                opacity: 0.7
+            }).addTo(this.map);
 
-        rutaLine.bindPopup(`<b>Ruta: ${ruta.descripcion}</b><br>ID: ${ruta.id}`);
+            rutaLine.bindPopup(`<b>Ruta: ${ruta.descripcion}</b><br>ID: ${ruta.id}`);
 
-        this.routes[ruta.id] = {
-            polyline: rutaLine,
-            puntos: puntosOrdenados,
-            color: rutaColor
-        };
+            this.routes[ruta.id] = {
+                polyline: rutaLine,
+                puntos: puntosOrdenados,
+                color: rutaColor
+            };
+        } catch (err) {
+            console.error(`Error al dibujar ruta ${ruta.id}:`, err);
+        }
     },
+
 
     actualizarInfoAutobus: function (autobus) {
         if (!autobus) return;

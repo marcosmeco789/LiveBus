@@ -26,46 +26,6 @@ window.rutaSignalR = {
         }
     },
 
-    // Inicializar el mapa
-    initializeMap: function () {
-        this.log("Inicializando mapa...");
-
-        if (this.map) {
-            this.log("El mapa ya está inicializado");
-            return;
-        }
-
-        // Verificar que Leaflet esté cargado
-        if (typeof L === 'undefined') {
-            console.error("Error: Leaflet no está cargado. Comprueba que la biblioteca se ha cargado correctamente.");
-            return;
-        }
-
-        try {
-            this.log("Creando instancia del mapa");
-            this.map = L.map('map').setView([42.2345, -8.7072], 13);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                maxZoom: 19
-            }).addTo(this.map);
-
-            this.map.zoomControl.setPosition('bottomright');
-
-            // Dar más tiempo para que el mapa se inicialice correctamente
-            setTimeout(() => {
-                if (this.map) {
-                    this.log("Ajustando tamaño del mapa");
-                    this.map.invalidateSize();
-                }
-            }, 300);
-
-            this.log("Mapa inicializado correctamente");
-        } catch (err) {
-            console.error("Error al inicializar el mapa:", err);
-        }
-    },
-
     // Inicializar la conexión SignalR
     init: async function () {
         try {
@@ -115,6 +75,48 @@ window.rutaSignalR = {
             this.mostrarMensajeError(`Error al cargar los datos de la ruta: ${err.message}`);
         }
     },
+
+
+    // Inicializar el mapa
+    initializeMap: function () {
+        this.log("Inicializando mapa...");
+
+        if (this.map) {
+            this.log("El mapa ya está inicializado");
+            return;
+        }
+
+        // Verificar que Leaflet esté cargado
+        if (typeof L === 'undefined') {
+            console.error("Error: Leaflet no está cargado. Comprueba que la biblioteca se ha cargado correctamente.");
+            return;
+        }
+
+        try {
+            this.log("Creando instancia del mapa");
+            this.map = L.map('map').setView([42.2345, -8.7072], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(this.map);
+
+            this.map.zoomControl.setPosition('bottomright');
+
+            // Dar más tiempo para que el mapa se inicialice correctamente
+            setTimeout(() => {
+                if (this.map) {
+                    this.log("Ajustando tamaño del mapa");
+                    this.map.invalidateSize();
+                }
+            }, 300);
+
+            this.log("Mapa inicializado correctamente");
+        } catch (err) {
+            console.error("Error al inicializar el mapa:", err);
+        }
+    },
+
 
     verificarRutaExisteYHabilitada: async function () {
         try {
@@ -469,14 +471,80 @@ window.rutaSignalR = {
         // Añadir popup con información
         marker.bindPopup(`<b>${nombre}</b><br>ID: ${autobusId}`);
 
+        // Implementar nuestra propia función slideTo para el marcador
+        marker._slideAnimationActive = false;
+        marker._currentAnimationId = null;
+
+        marker.slideTo = function (newLatLng, options) {
+            this.log ? this.log(`Creando animación para autobús ${autobusId}`) :
+                console.log(`[rutaSignalR] Creando animación para autobús ${autobusId}`);
+
+            // Detener cualquier animación en curso
+            if (this._slideAnimationActive && this._currentAnimationId !== null) {
+                window.cancelAnimationFrame(this._currentAnimationId);
+                console.log(`Animación anterior cancelada para autobús ${autobusId}`);
+                this._slideAnimationActive = false;
+            }
+
+            const startLatLng = this.getLatLng();
+            const startPosition = { lat: startLatLng.lat, lng: startLatLng.lng };
+            const endPosition = { lat: newLatLng.lat, lng: newLatLng.lng };
+
+            // Si las posiciones son muy cercanas, actualizar directamente
+            if (Math.abs(startPosition.lat - endPosition.lat) < 0.000001 &&
+                Math.abs(startPosition.lng - endPosition.lng) < 0.000001) {
+                this.setLatLng(newLatLng);
+                return this;
+            }
+
+            const settings = {
+                duration: options?.duration || 2000,
+                easing: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t, // easing cuadrático suave
+                keepAtCenter: options?.keepAtCenter || false
+            };
+
+            const startTime = Date.now();
+            const animate = () => {
+                const elapsedTime = Date.now() - startTime;
+                const progress = Math.min(elapsedTime / settings.duration, 1);
+                const easedProgress = settings.easing(progress);
+
+                // Calcular la nueva posición
+                const lat = startPosition.lat + (endPosition.lat - startPosition.lat) * easedProgress;
+                const lng = startPosition.lng + (endPosition.lng - startPosition.lng) * easedProgress;
+
+                // Establecer la nueva posición
+                this.setLatLng([lat, lng]);
+
+                // Continuar la animación si no ha terminado
+                if (progress < 1) {
+                    this._slideAnimationActive = true;
+                    this._currentAnimationId = window.requestAnimationFrame(animate);
+                } else {
+                    // Animación completada
+                    this.setLatLng(newLatLng); // Asegurar posición final exacta
+                    this._slideAnimationActive = false;
+                    this._currentAnimationId = null;
+
+                    if (settings.keepAtCenter && this._map) {
+                        this._map.setView(newLatLng);
+                    }
+
+                    console.log(`Animación completada para autobús ${autobusId}`);
+                }
+            };
+
+            // Iniciar animación
+            this._slideAnimationActive = true;
+            this._currentAnimationId = window.requestAnimationFrame(animate);
+
+            return this;
+        };
+
         this.markers[autobusId] = marker;
-
-        if (!marker.slideTo && L.Marker.MovingMarker) {
-            Object.assign(marker, L.Marker.MovingMarker.prototype);
-        }
-
         return marker;
     },
+
 
     dibujarRuta: function (ruta) {
         this.log("Iniciando dibujo de ruta...");

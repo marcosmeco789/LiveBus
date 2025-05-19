@@ -13,8 +13,24 @@
 </head>
 
 <body>
-    <Routes />
+    <ErrorBoundary @ref="errorBoundary">
+        <ChildContent>
+            <Routes />
+        </ChildContent>
+        <ErrorContent>
+            <p class="alert alert-danger">Ha ocurrido un error en la aplicación. Por favor, <a href="" class="reload">recarga la página</a> o contacta con soporte si el problema persiste.</p>
+        </ErrorContent>
+    </ErrorBoundary>
     <script src="_framework/blazor.server.js"></script>
 </body>
 
 </html>
+
+@code {
+    private ErrorBoundary errorBoundary;
+
+    protected override void OnParametersSet()
+    {
+        errorBoundary?.Recover();
+    }
+   }

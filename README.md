@@ -255,8 +255,10 @@
 
   ### 19/05/2025
 
-  - Desde que empece a usar **https://livebus.ddns.net:7030/** estaba teniendo un bug en /rutas que hacia que el tiempo estimado de la tabla no se actualizase. Tuve que configurarlo para que ignore errores de certificado.ç
+  - Desde que empece a usar **https://livebus.ddns.net:7030/** estaba teniendo un bug en /rutas que hacia que el tiempo estimado de la tabla no se actualizase. Tuve que configurarlo para que ignore errores de certificado.
   - Ahora el campo tiempo estimado muestra el mensaje **Cargando...** mientras no actualiza por primera vez su valor.
-
+  - Arreglado un error que se producia al intentar eliminar una ruta.
+  - Arreglado un bug donde en ocasiones el icono del autobus en **/ruta/{id}** aparecia doble.
+  - Arreglada la nav-bar para moviles.
 
 

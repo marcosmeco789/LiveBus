@@ -56,7 +56,6 @@
                 </tbody>
             </table>
         </div>
-        <button class="btn btn-primary" @onclick="AgregarRuta">Agregar Nueva Ruta</button>
     }
 </div>
 
@@ -142,8 +141,6 @@
         try
         {
             var client = HttpClientFactory.CreateClient("LocalAPI");
-
-            // Usar el endpoint existente, que ya maneja la eliminación correctamente
             var response = await client.DeleteAsync($"api/Rutas/{id}");
 
             if (response.IsSuccessStatusCode)
@@ -166,12 +163,6 @@
         }
     }
 
-
-
-    private void AgregarRuta()
-    {
-        rutas.Add(new Ruta { Id = 0, Descripcion = "Nueva Ruta", Habilitada = true });
-    }
 
     public class Ruta
     {

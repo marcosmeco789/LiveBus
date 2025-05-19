@@ -42,7 +42,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th>ID</th>
-                        <th>Descripción</th>
+                        <th>Descripcion</th>
                         <th>Tiempo estimado</th>
                         <th>Acciones</th>
                     </tr>
@@ -79,10 +79,20 @@
     private ConcurrentDictionary<int, Dictionary<string, object>> infoRutas = new();
     private bool primeraRenderizacion = true;
     private Timer? actualizacionTimer;
+    List<Ruta> nuevasRutas;
+
+    private HttpClient GetHttpClient()
+    {
+        return HttpClientFactory.CreateClient("LocalAPI");
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await CargarRutas();
+        foreach (var ruta in rutas)
+        {
+            ruta.TiempoEstimadoPersonalizado = "Cargando...";
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -92,8 +102,13 @@
             await ConfigurarSignalR();
             primeraRenderizacion = false;
 
-            actualizacionTimer = new Timer(async _ => await InvokeAsync(StateHasChanged), 
-                null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+            var interval = TimeSpan.FromSeconds(4.5);
+
+            actualizacionTimer = new Timer(async _ =>
+            {
+                await CargarRutas();
+                await InvokeAsync(StateHasChanged);
+            }, null, interval, interval);
         }
     }
 
@@ -101,10 +116,46 @@
     {
         try
         {
+            Console.WriteLine("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+            await LogToConsoleAsync("Configurando SignalR...");
+
+            var currentHost = new Uri(NavigationManager.Uri).Host.ToLower();
+            var isRemote = !currentHost.Contains("localhost");
+
+            HttpMessageHandler httpMessageHandler;
+            if (isRemote)
+            {
+                httpMessageHandler = new HttpClientHandler
+                    {
+                        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
+                        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+                    };
+            }
+            else
+            {
+                httpMessageHandler = new HttpClientHandler();
+            }
+
             hubConnection = new HubConnectionBuilder()
-                .WithUrl(NavigationManager.ToAbsoluteUri("/autobusMoveHub"))
-                .WithAutomaticReconnect()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/autobusMoveHub"), options =>
+                {
+                    options.HttpMessageHandlerFactory = _ => httpMessageHandler;
+                    options.SkipNegotiation = false;
+                    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets |
+                                         Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                })
+                .WithAutomaticReconnect(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
                 .Build();
+
+            hubConnection.ServerTimeout = TimeSpan.FromMinutes(2);
+            hubConnection.HandshakeTimeout = TimeSpan.FromSeconds(30);
+
+            hubConnection.Closed += async (error) =>
+            {
+                await LogToConsoleAsync($"Conexion SignalR cerrada: {error?.Message}", error != null);
+                await Task.Delay(1000);
+                await hubConnection.StartAsync();
+            };
 
             hubConnection.On<int, double, double>("RecibirActualizacionPosicion", OnRecibirActualizacionPosicion);
             hubConnection.On("SimulacionIniciada", OnSimulacionCambioEstado);
@@ -112,23 +163,34 @@
             hubConnection.On("SimulacionReiniciada", OnSimulacionCambioEstado);
             hubConnection.On<int, int>("RecibirCambioRuta", OnRecibirCambioRuta);
 
+            await LogToConsoleAsync("Iniciando conexion SignalR...");
             await hubConnection.StartAsync();
-            await LogToConsoleAsync("Conexión SignalR establecida");
+            await LogToConsoleAsync("Conexion SignalR establecida");
+            await LogToConsoleAsync($"Estado de la conexion: {hubConnection.State}");
         }
         catch (Exception ex)
         {
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine("INNER EXCEPTION: " + ex.InnerException.Message);
+            }
+
             await LogToConsoleAsync($"Error al configurar SignalR: {ex.Message}", true);
+            await Task.Delay(2000);
+            await ConfigurarSignalR();
         }
     }
+
 
     private async Task OnSimulacionCambioEstado()
     {
         await CargarRutas();
+
     }
 
     private async Task OnRecibirCambioRuta(int autobusId, int rutaId)
     {
-        await LogToConsoleAsync($"Autobús {autobusId} cambió a ruta {rutaId}");
+        await LogToConsoleAsync($"Autobus {autobusId} cambio a ruta {rutaId}");
         await CargarRutas();
     }
 
@@ -136,13 +198,21 @@
     {
         try
         {
-            await ObtenerYMostrarInfoAutobus(autobusId);
+            await LogToConsoleAsync($"SignalR: Recibida actualización del autobus {autobusId} en [{latitud}, {longitud}]");
+
+            var rutaId = await ObtenerYMostrarInfoAutobus(autobusId);
+            if (rutaId.HasValue)
+            {
+                await LogToConsoleAsync($"Actualizando información de la ruta {rutaId}");
+            }
+
             await CargarRutas();
             await InvokeAsync(StateHasChanged);
+            await LogToConsoleAsync("UI actualizada");
         }
         catch (Exception ex)
         {
-            await LogToConsoleAsync($"Error: {ex.Message}", true);
+            await LogToConsoleAsync($"Error en actualización: {ex.Message}", true);
         }
     }
 
@@ -160,7 +230,7 @@
         }
         catch
         {
-            
+            // Ignorar errores de la consola
         }
     }
 
@@ -168,7 +238,7 @@
     {
         try
         {
-            var client = HttpClientFactory.CreateClient("LocalAPI");
+            var client = GetHttpClient();
             var response = await client.GetAsync($"api/Autobuses/{autobusId}");
 
             if (response.IsSuccessStatusCode)
@@ -247,7 +317,7 @@
                 }
                 else
                 {
-                    var client = HttpClientFactory.CreateClient("LocalAPI");
+                    var client = GetHttpClient();
                     var response = await client.GetAsync($"api/Rutas/{rutaId}");
 
                     if (response.IsSuccessStatusCode)
@@ -282,7 +352,7 @@
                 int puntosRestantes = totalPuntos - puntoActual;
                 if (puntosRestantes < 0) puntosRestantes = 0;
 
-                int segundosRestantes = puntosRestantes * 3; // 3 segundos por punto
+                int segundosRestantes = (int)(puntosRestantes * 4.5);
                 string tiempoEstimado = FormatTime(segundosRestantes);
 
                 infoRuta["puntosRestantes"] = puntosRestantes;
@@ -319,7 +389,7 @@
         try
         {
             bool initialLoad = loading;
-            var client = HttpClientFactory.CreateClient("LocalAPI");
+            var client = GetHttpClient();
             var response = await client.GetAsync("api/Rutas");
 
             if (response.IsSuccessStatusCode)
@@ -327,7 +397,7 @@
                 var content = await response.Content.ReadAsStringAsync();
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-                List<Ruta> nuevasRutas;
+                
                 try
                 {
                     nuevasRutas = JsonSerializer.Deserialize<List<Ruta>>(content, options) ?? new();
@@ -363,6 +433,7 @@
                             ActualizarTiempoEstimado(ruta, autobusesInfo);
                         }
                     }
+                   
                 }
 
                 rutas = nuevasRutas;
@@ -448,7 +519,7 @@
         int puntosRestantes = ruta.PuntosRutaCount - mejorAutobus.puntoActual;
         if (puntosRestantes < 0) puntosRestantes = 0;
 
-        int segundosRestantes = puntosRestantes * 3;
+        int segundosRestantes = (int)(puntosRestantes * 4.5);
         string tiempoEstimado = FormatTime(segundosRestantes);
 
         infoRuta["puntosRestantes"] = puntosRestantes;
@@ -471,7 +542,7 @@
         }
     }
 
-    // Clase local para deserialización con propiedades computadas
+
     public class Ruta
     {
         public int Id { get; set; }
@@ -579,7 +650,7 @@
                 int puntosRestantes = totalPuntos - mejorPuntoActual;
                 if (puntosRestantes < 0) puntosRestantes = 0;
 
-                int segundosEstimados = puntosRestantes * 3;
+                int segundosEstimados = (int)(puntosRestantes * 4.5);
                 return FormatTime(segundosEstimados);
             }
         }

@@ -229,20 +229,19 @@
 
     public ValueTask DisposeAsync()
     {
-        // Si es necesario, limpiar recursos del mapa al salir de la página
-        if (mapInitialized)
+        try
         {
-            try
-            {
-                return JSRuntime.InvokeVoidAsync("eval", "if(window.rutaSignalR && window.rutaSignalR.connection) { window.rutaSignalR.connection.stop(); }");
-            }
-            catch
-            {
-                // Ignorar errores durante la limpieza
-            }
+            _ = JSRuntime.InvokeVoidAsync("eval", "if(window.rutaSignalR) { window.rutaSignalR.dispose(); }");
+            _ = JSRuntime.InvokeVoidAsync("console.log", "Recursos de rutaSignalR limpiados correctamente");
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al limpiar recursos: {ex.Message}");
+        }
+
         return ValueTask.CompletedTask;
     }
+
 }
 
 @* Scripts - cargar solo una vez *@

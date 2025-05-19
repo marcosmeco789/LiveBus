@@ -139,19 +139,34 @@
 
     private async Task EliminarRuta(int id)
     {
-        var client = HttpClientFactory.CreateClient("LocalAPI");
-        var response = await client.DeleteAsync($"api/Rutas/{id}");
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            rutas.RemoveAll(r => r.Id == id);
+            var client = HttpClientFactory.CreateClient("LocalAPI");
+
+            // Usar el endpoint existente, que ya maneja la eliminación correctamente
+            var response = await client.DeleteAsync($"api/Rutas/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                rutas.RemoveAll(r => r.Id == id);
+                error = false;
+                errorMessage = string.Empty;
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                error = true;
+                errorMessage = $"Error al eliminar ruta: {response.StatusCode} - {errorContent}";
+            }
         }
-        else
+        catch (Exception ex)
         {
             error = true;
-            errorMessage = $"Error al eliminar ruta: {response.StatusCode}";
+            errorMessage = $"Error al eliminar ruta: {ex.Message}";
         }
     }
+
+
 
     private void AgregarRuta()
     {

@@ -61,7 +61,19 @@ builder.Services.AddHttpClient("LocalAPI", client =>
 builder.Services.AddHttpClient("ExternalAPI", client =>
 {
     client.BaseAddress = new Uri("https://livebus.ddns.net:7030/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+})
+.ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
+        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+    };
+    return handler;
 });
+
+
 
 var app = builder.Build();
 

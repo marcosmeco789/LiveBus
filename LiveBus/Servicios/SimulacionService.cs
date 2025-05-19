@@ -169,7 +169,7 @@ namespace LiveBus.Servicios
                 }
             }
 
-            _logger.LogInformation($"Simulación iniciada para la ruta {rutaId}");
+            _logger.LogInformation($"Simulacion iniciada para la ruta {rutaId}");
 
             // Notificar solo a los clientes interesados en esta ruta
             await _hubContext.Clients.All.SendAsync("SimulacionIniciadaRuta", rutaId);

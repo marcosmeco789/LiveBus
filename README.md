@@ -251,5 +251,12 @@
   - Arregle un error que salia por consola de la animacion de movimiento del autobus al desplazarse de punto a punto. Resultó ser que el link al script que estaba usando era incorrecto.
   - Solucioné un error en **/rutas/{id}.** que hacia que en ocasiones al recargar la pagina el mapa no se iniciase. 
 
+  ---
+
+  ### 19/05/2025
+
+  - Desde que empece a usar **https://livebus.ddns.net:7030/** estaba teniendo un bug en /rutas que hacia que el tiempo estimado de la tabla no se actualizase. Tuve que configurarlo para que ignore errores de certificado.ç
+  - Ahora el campo tiempo estimado muestra el mensaje **Cargando...** mientras no actualiza por primera vez su valor.
+
 
 

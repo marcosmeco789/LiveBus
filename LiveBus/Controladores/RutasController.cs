@@ -99,17 +99,46 @@ namespace LiveBus.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRuta(int id)
         {
-            var ruta = await _context.Rutas.FindAsync(id);
-            if (ruta == null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                return NotFound();
+                var ruta = await _context.Rutas
+                    .Include(r => r.Autobuses)
+                    .Include(r => r.PuntosRuta)
+                    .FirstOrDefaultAsync(r => r.Id == id);
+
+                if (ruta == null)
+                {
+                    return NotFound();
+                }
+
+                foreach (var autobus in ruta.Autobuses.ToList())
+                {
+                    autobus.RutaId = null;
+                    autobus.PuntoActual = 0;
+                    _context.Entry(autobus).State = EntityState.Modified;
+                }
+
+                if (ruta.PuntosRuta != null && ruta.PuntosRuta.Any())
+                {
+                    _context.PuntosRuta.RemoveRange(ruta.PuntosRuta);
+                }
+
+                _context.Rutas.Remove(ruta);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return NoContent();
             }
-
-            _context.Rutas.Remove(ruta);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                // Rollback en caso de error
+                await transaction.RollbackAsync();
+                return StatusCode(500, ex.InnerException?.Message ?? ex.Message);
+            }
         }
+
 
         [HttpPost("{id}/actualizarEstadoVisibilidad")]
         public async Task<IActionResult> ActualizarEstadoVisibilidad(int id)
